@@ -1,0 +1,1187 @@
+High-level Pattern,Sub pattern,Description,Example,Optimized Metrics,Detection
+Algorithm-Level Optimizations,Select Computationally Efficient Algorithms,"Replace computationally inefficient algorithms with functionally equivalent, more efficient algorithms.","Narrative:
+Performance profiling revealed a nested loop in the sorting function led to a high number of operations as input size increased. Further analysis showed that the algorithm used was bubble sort, which has a computational complexity of O(n^2). To reduce execution count and improve performance, the algorithm was replaced with quick sort, which has a better computational complexity of O(n log n). This change led to faster sorting, especially for larger arrays.
+
+Code Before Optimization:
+void swap(int* xp, int* yp){
+    int temp = *xp;
+    *xp = *yp;
+    *yp = temp;
+}
+
+// An optimized version of Bubble Sort
+void bubbleSort(int arr[], int n){
+    int i, j;
+    bool swapped;
+    for (i = 0; i < n - 1; i++) {
+        swapped = false;
+        for (j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                swap(&arr[j], &arr[j + 1]);
+                swapped = true;
+            }
+        }
+
+        // If no two elements were swapped by inner loop,
+        // then break
+        if (swapped == false)
+            break;
+    }
+}
+
+Code After Optimization:
+void swap(int* a, int* b);
+
+// Partition function
+int partition(int arr[], int low, int high) {
+    
+    // Choose the pivot
+    int pivot = arr[high];
+    
+    // Index of smaller element and indicates 
+    // the right position of pivot found so far
+    int i = low - 1;
+
+    // Traverse arr[low..high] and move all smaller
+    // elements to the left side. Elements from low to 
+    // i are smaller after every iteration
+    for (int j = low; j <= high - 1; j++) {
+        if (arr[j] < pivot) {
+            i++;
+            swap(&arr[i], &arr[j]);
+        }
+    }
+    
+    // Move pivot after smaller elements and
+    // return its position
+    swap(&arr[i + 1], &arr[high]);  
+    return i + 1;
+}
+
+// The QuickSort function implementation
+void quickSort(int arr[], int low, int high) {
+    if (low < high) {
+        
+        // pi is the partition return index of pivot
+        int pi = partition(arr, low, high);
+
+        // Recursion calls for smaller elements
+        // and greater or equals elements
+        quickSort(arr, low, pi - 1);
+        quickSort(arr, pi + 1, high);
+    }
+}
+
+void swap(int* a, int* b) {
+    int t = *a;
+    *a = *b;
+    *b = t;
+}",Reduced execution count (number of times operations or function calls are executed) potentially leading to reduced latency,"If profiling data is available, identify code segments with quadratic or exponential execution growth. Look for nested loop structures, these are common sources of such growth."
+Algorithm-Level Optimizations,Select Algorithm Based on Instruction Speed,"When choosing an algorithm, prioritize those that utilize faster instructions. Algorithms relying on high-latency operations like integer division can introduce performance bottlenecks. Favor algorithms that use low-latency arithmetic operations whenever possible.","Narrative:
+Performance profiling revealed the frequent use of high latency instructions in the `find_gcf` function, primarily due to frequent modulo operations. The function was redesigned using Euclid's algorithm with subtraction instead of modulo. This changed reduced instruction latency and improved overall latency.
+
+Code Before Optimization:
+int find_gcf(int a, int b)
+{
+    /* assumes both a and b are greater than 0*/
+    while (1) {
+        a = a % b;
+        if (a == 0) return b;
+        if (a == 1) return 1;
+
+        b = b % a;
+        if (b == 0) return a;
+        if (b == 1) return 1;
+    }
+}
+
+Code After Optimization:
+int find_gcf(int a, int b)
+{
+    /* assumes both a and b are greater than 0 */
+    while (1) {
+        if (a > b) a = a - b;
+        else if (a < b) b = b - a;
+        else return a;
+    }
+}
+
+",Decrease instruction latency (time it takes for an instruction to complete) potentially leading to a reduction in overall latency.,"Examine code for frequent use of high-latency instructions (e.g., division, modulo). See if you can find a different way to solve the problem using simpler instructions."
+Algorithm-Level Optimizations,Structure Algorithm to Support instruction level parallelism (ILP),"Identify and remove data dependencies that limit instruction-level parallelism, while preserving the program's correctness.","Narrative:
+Performance profiling revealed that a loop doing sum reduction had low instruction-level parallelism (ILP). Static analysis found a dependency between loop iterations--each iteration needed the result from the previous one. This stopped the processor from running multiple iterations at the same time. To improve ILP, the loop was unrolled, and several accumulators where used to eliminate the dependency. This allowed the processor to execute multiple additions at once. As a result, instruction throughput increased and overall performance improved.
+
+Code Before Optimization:
+a = 0;
+for (int x = 0; x < 1000; x++)
+    a += buffer[x]
+
+Code After Optimization:
+a = b = c = d = 0;
+for (int x = 0; x < 1000; x += 4)
+{
+    a += buffer[x];
+    b += buffer[x+1];
+    c += buffer[x+2];
+    d += buffer[x+3];
+}
+a = a + b + c + d;
+",Greater instruction level parallelism (ILP) leading to greater throughput,"Inspect loops for loop-carried dependencies, where each iteration is required by the next. These dependencies prevent parallel instruction execution. While modern optimizing compilers may apply transformations such as loop unrolling automatically, manual optimization may still yield performance gains in performance-critical code or cases where the compiler is conservative. If profiling data is present, look for performance bottlenecks where the average cycle per instruction (CPI) exceeds 1.0."
+Algorithm-Level Optimizations,Select Space Efficient Algorithm,"Fetching from main memory is very slow and can be treated as a high-latency instruction. If an algorithm execution is bound by system memory, consider algorithms that consume less memory.","Narrative:
+During memory profiling, it was observed that a sorting routing incurred a high number of cache and page misses, indicating frequent access to main memory. The implementation used merge sort, which creates temporary arrays during each recursive merge step. This increased the memory footprint and led to inefficient cache utiliation. To improve cache performance, the algorithm was replaced with selection sort, which performs sorting in-place without allocating additional memory. While selection sort has a higher time complexity than merge sort, the trade-off can be worthwhile in memory constrained environments.
+
+Code Before Optimization:
+void merge(int arr[], int l, int m, int r)
+{
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    // Create temp arrays
+    int L[n1], R[n2];
+
+    // Copy data to temp arrays L[] and R[]
+    for (i = 0; i < n1; i++)
+        L[i] = arr[l + i];
+    for (j = 0; j < n2; j++)
+        R[j] = arr[m + 1 + j];
+
+    // Merge the temp arrays back into arr[l..r
+    i = 0;
+    j = 0;
+    k = l;
+    while (i < n1 && j < n2) {
+        if (L[i] <= R[j]) {
+            arr[k] = L[i];
+            i++;
+        }
+        else {
+            arr[k] = R[j];
+            j++;
+        }
+        k++;
+    }
+
+    // Copy the remaining elements of L[],
+    // if there are any
+    while (i < n1) {
+        arr[k] = L[i];
+        i++;
+        k++;
+    }
+
+    // Copy the remaining elements of R[],
+    // if there are any
+    while (j < n2) {
+        arr[k] = R[j];
+        j++;
+        k++;
+    }
+}
+
+// l is for left index and r is right index of the
+// sub-array of arr to be sorted
+void mergeSort(int arr[], int l, int r)
+{
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        // Sort first and second halves
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+
+        merge(arr, l, m, r);
+    }
+}
+
+Code After Optimization:
+void selectionSort(int arr[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+      
+        // Assume the current position holds
+        // the minimum element
+        int min_idx = i;
+        
+        // Iterate through the unsorted portion
+        // to find the actual minimum
+        for (int j = i + 1; j < n; j++) {
+            if (arr[j] < arr[min_idx]) {
+              
+                // Update min_idx if a smaller element is found
+                min_idx = j;
+            }
+        }
+        
+        // Move minimum element to its
+        // correct position
+        int temp = arr[i];
+        arr[i] = arr[min_idx];
+        arr[min_idx] = temp;
+    }
+}
+
+","Memory footprint (decrease page misses, decrease cache misses) potentially leading to both reduced latency and greater throughput.","Examine code for frequent memory allocations or use of temporary buffers. If profiling data is present, look for a high number of first or second-level cache misses."
+Algorithm-Level Optimizations,Inheritance over Delegation for Energy Efficiency,Inheritance has shown to be more energy-efficient than delegation.,"Narrative:
+It was determined that class Employee was a proper subtype of class Person. The code before optimization using delegation was be replaced with inheritance leading to a reduction in runtime.
+
+Code Before Optimization:
+// Delegation
+public class Person {
+    public Person(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    private String name;
+}
+
+public class Employee {
+    public Employee(String name) {
+        person = new Person(name);
+    }
+
+    public String getName() {
+        return person.getName();
+    }
+
+    private Person person;
+}
+
+Code After Optimization:
+// Inheritance
+public class Person {
+    public Person(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    private String name;
+}
+
+public class Employee extends Person {
+    public Employee(String name){
+        super(name);
+    }
+}
+",Reduction in runtime leading to reducting in energy consumption,"Look for cases where delegation can be replaced by inheritance. Only apply inheritance in cases where the subclass is truely a subtype of the superclass. E.g., does the subclass implement all of the same method calls as the superclass?"
+Algorithm-Level Optimizations,Event-Driven Throttling,"Continuous or per-tick updates often trigger expensive operations—UI redraws, logging, rendering, network calls—that provide no additional benefit when the observed value changes slowly.
+Event-Driven Throttling consolidates these updates by accumulating elapsed time or events and executing the expensive operation only when a threshold is reached or when a force signal is emitted.
+This preserves correctness while significantly reducing redundant work.","Before (every tick triggers a tray update):
+
+tray.setTime()
+
+After (update only when needed):
+
+trayUpdateCounter += elapsedSecs
+
+if (force || trayUpdateCounter >= trayUpdateInterval || tray.runningTime <= 0) {
+    tray.setTime()
+    trayUpdateCounter = 0
+}
+
+The update becomes conditional and rate-limited, preventing unnecessary UI refreshes.
+","CPU usage, Latency, Throughput","If the system performs the same expensive operation repeatedly in a tight event loop or timer callback, consider throttling."
+Control-Flow and Branching Optimizations,Make Conditional Branches More Predictable,"Improve the predictability of branches that cannot be transformed into straight line code by changing branch order, and by making most likely code be the fall through for the branch.","Narrative:
+Profiling revealed a relatively high branch misprediction rate (>=0.05) in a condition that evaluated multiple boolean expressions joined by AND. The compiler generated separate branch instructions for each comparison and the combined likelihood of each expression evaluating to true likely made the condition difficult for the branch predictor ro learn. To improve predicability, the condition was rewritten to use bitwise OR. This transformation reduced the number of branches from three to one, making the control flow more predictable and improving the branch prediction rate.
+
+Code Before Optimization:
+if (t1 == 0 && t2 == 0 && t3 == 0) {}
+
+Code After Optimization:
+if ((t1 | t2 | t3) == 0) {}","Greater branch prediction rate, potentially leading to lower latency","If profiling data is available, consider optimization when branch misprediction rate is high (>=0.05).
+
+Equation: branch misprediction rate = mispredicted branches retired / branches retired."
+Control-Flow and Branching Optimizations,Remove branches with functional logic,"In cases where values need to be clamped to a fixed range, replace conditional branches with min/max operations. These operations are typically compiled into a single, branchless instruction that improves predictability and reduces latency.","Narrative:
+Profiling data revealed a relatively high branch misprediction rate (>=0.5) in the code before optimization. The code before optimization is a special case where values need to be clamped. To improve predictability, the condition was replaced with a min operation. This operation is compiled into a single branchless instruction that improves predictability and reduces latency.
+
+Code Before Optimization:
+short arr[1000];
+int i;
+for (i=0; i<1000; i++) {
+    if (arr[i] > 255) {
+        arr[i] = 255;
+    }
+}
+
+Code After Optimization:
+short arr[1000];
+int i;
+for (i=0; i<1000; i++) {
+    arr[i] = min(arr[i], 255);
+}
+
+","Remove branches, potentially leading to lower latency","Examing code for value-clamping patterns (comparison followed by assignment to fixed bount). If profiling data is available, consider optimization when branch misprediction rate is high (>=0.05).
+
+Equation: branch misprediction rate = mispredicted branches retired / branches retired"
+Control-Flow and Branching Optimizations,Remove branches by doing extra work,"If conditional branch can be made unconditional without affecting program correctness, remove conditional branch and perform extra work.","Narrative:
+While analyzing a routine responsible for alpha blending pixels in a bitmap, profiling revealed a branch misprediction rate greater than 0.05, particularly in a section of code that checks the alpha value before blending. The function conditionally performed alpha blending only when the alpha value was between 0 and 255 (0 < a < 255). Because the alpha distribution varied unpredicably across pixels, the branch was frequently mispredicted, introducing latency through pipeline flushes. To improve predicability, the branch was removed, and the alpha blending function was performed unconditionally for all pixels. Since the blending function is safe to apply even when alpha is equal to 0 or 255, the extra work did not affect correctness. This transformation reduced branch misprediction and improved latency.
+
+Code Before Optimization:
+for (i=0; i< BitmapSize; i++)
+{
+    SrcAlpha = GetAlpha(SrcPixel[i]);
+    if (SrcAlpha == 255)
+        DstPixel[i] = SrcPixel[i];
+    else if (SrcAlpha != 0)
+        DstPixel[i] = blend(SrcPixel[i], DstPixel[i], SrcAlpha);
+    // else, when SrcAlpha=0, do nothing
+}
+
+Code After Optimization:
+for (i=0; i<BitmapSize; i+=4)
+    Blend4Pixels(SrcPixel+i, DstPixel+i);","Removed branches, potentially leading to lower latency","Examine code for cases where conditional values are unpredictable, especially in tight loops. If profiling data is available, consider optimization when the branch misprediction rate is greater than 0.05."
+Control-Flow and Branching Optimizations,Remove branching with masking,Replace conditional branches with bitwise operations (masking) to reduce branch mispredicitons and improve ILP.,"Code Before Optimization:
+int foo(x, y)
+{
+    if (x > 0) {
+        y = y + x;
+    }
+    return y;
+}
+
+Code After Optimization:
+int foo(x, y)
+{
+    unsigned hob = (unsigned)x >> (sizeof(int[CHAR_BIT])-1);
+    return y + (x & hob - 1);
+}","CPU cycles, branch misprediction rate",Branch prediciton counters
+Control-Flow and Branching Optimizations,Rearranging branches,Reorder conditional branches so that the most likely condition is evaluated first.,"Code Before Optimization:
+if (not_likely_condition) {} else {}
+
+Code After Optimization:
+if (likely_case) {} else {}","CPU cycles, branch misprediction rate",Branch prediciton counters
+Control-Flow and Branching Optimizations,Combining branches,Combine multiple logical conditions into a single,"Code Before Optimization:
+if (x == 0 && y == 0) {}
+
+Code After Optimization:
+if (x + y == 0) {}","CPU cycles, branch instruction count",Branch prediciton counters
+Control-Flow and Branching Optimizations,Rearranging for early return,"Estructuring the code so that base cases or exceptional conditions are handled first. By placing these branches at the top of the function, the logic becomes clearer, deeply nested blocks are avoided, and the main execution path is easier to follow.","Before:
+def get_discounted_price(price):
+    final_price = 0
+    if price > 0:
+        if price < 50:
+            final_price = price
+        else:
+            final_price = price * 0.9
+    else:
+        final_price = 0
+
+    return final_price
+
+After:
+def get_discounted_price(price):
+    if price <= 0:
+        return 0  # base case handled early
+
+    if price < 50:
+        return price  # simple case returned early
+
+    # main logic
+    return price * 0.9","CPU cycles, branch instruction count",Branch prediciton counters
+Memory and Data Locality Optimizations,Access Data with Appropriate Type (Prevent Store Forwarding Issues),"Ensure data is accessed by the type that was used to store it. A store followed closely by a load from the same memory address can cause problems if sizes or allignment don't match, stalling the CPU pipeline.","Narrative:
+Profiling revealed high counts of MOB load replays retired, resulting in CPU stalls. It was determined a store forwarding issue was the root cause. In the original code, only the lower 32-bits were stored before the 64-bit read. The solution was to store both the lower and higher 32-bits then read.
+
+Code Before Optimization:
+struct Data {
+    uint32_t lo;
+    uint32_t hi;
+};
+
+Data d;
+d.lo = 42;
+uint64_t full = *reinterpret_cast<uint64_t*>(&d);
+
+Code After Optimization:
+struct Data {
+    uint32_t lo;
+    uint32_t hi;
+};
+
+Data d;
+d.lo = 42;
+d.hi = 0;
+uint64_t full = *reinterpret_cast<uint64_t*>(&d);","Less MOB loads replays retired, possibly resulting in reduced latency","MOB loads replays retired, resource related stalls"
+Memory and Data Locality Optimizations,Arrange Data for Optimal Hardware Prefetching,Arrange data structure accesses so that hardware prefetch naturally prefetches the data.,"Narrative:
+Profiling revealed a high umber of first-level cache misses during the traversal of a large, pointer-based linked list. Because traditional linked lists store nodes in non-continuous memory, the hardware prefetching struggled to predict and fetch the next memory location in advance, leading to frequent stalls. To address this, the data structure was reorganized so that all nodes were allocated in a single contiguous memory block. The next pointers were then assigned in a sequential manner, enabling a natural stride pattern that the hardware prefetcher could detect. This optimization resulted in the number of first-level cache misses retired being significantly reduced, improving overall memory access efficiency and loop throughput.
+
+Code After Optimization:
+// Function to create a prefetch-friendly linked list
+Node* create_contiguous_linked_list(int n) {
+    if (n <= 0) return NULL;
+
+    // Allocate memory for all nodes in a contiguous block
+    Node* buffer = (Node*) malloc(n * sizeof(Node));
+    if (!buffer) {
+        printf(""Memory allocation failed!\n"");
+        return NULL;
+    }
+
+    // Link nodes sequentially (contiguous memory layout)
+    for (int i = 0; i < n - 1; i++) {
+        buffer[i].value = i;
+        buffer[i].next = &buffer[i + 1];
+    }
+    buffer[n - 1].value = n - 1;
+    buffer[n - 1].next = NULL; // End of list
+
+    return buffer; // Return pointer to the first node
+}","Decrease cache miss retired events, leading to increased throughput",Use the 1st level cache misses retired event counter to find the locations of the cache miss events
+Memory and Data Locality Optimizations,Improve CPU Cache management,Avoid cache capacity issues by operating on smaller cache sized buffers.,"Narrative:
+Profiling revealed a high number of 1st level cache miss retired events in the multiplyMatrix function. Further analysis of the algorithm determined the algorithm could be computed in tiles. Tile size was determined based on the target systems L1 data cache size. The resulting tiledMatrixMultiplication algorithm reduced the number of 1st level cache misses and increased throughput.
+
+Code Before Optimization:
+// Function to perform matrix multiplication
+void multiplyMatrices(int A[M][N], int B[N][P], int C[M][P]) {
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < P; j++) {
+            C[i][j] = 0;  // Initialize result matrix cell
+            for (int k = 0; k < N; k++) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+}
+
+Code After Optimization:
+// Function for tiled matrix multiplication
+void tiledMatrixMultiply(int A[M][N], int B[N][P], int C[M][P]) {
+    // Initialize result matrix
+    for (int i = 0; i < M; i++)
+        for (int j = 0; j < P; j++)
+            C[i][j] = 0;
+
+    // Blocked matrix multiplication
+    for (int i = 0; i < M; i += TILE_SIZE) {
+        for (int j = 0; j < P; j += TILE_SIZE) {
+            for (int k = 0; k < N; k += TILE_SIZE) {
+
+                // Multiply sub-matrices (tiles)
+                for (int ii = i; ii < i + TILE_SIZE && ii < M; ii++) {
+                    for (int jj = j; jj < j + TILE_SIZE && jj < P; jj++) {
+                        for (int kk = k; kk < k + TILE_SIZE && kk < N; kk++) {
+                            C[ii][jj] += A[ii][kk] * B[kk][jj];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+","Decreased number 1st-level cache miss retired events, leading to greater throughput",The 1st level cache misses retired event counter can be used to find the source of cache misses events.
+Memory and Data Locality Optimizations,Increase Workload to Mitigate Memory Access Latency,The processor can exploit idle time during memory fetches by executing non-data dependent instructions.,"Narrative:
+Profiling revealed a high number of 1st-level cache miss retired events in the process_data function. Non-data dependent work was moved to the location of the cache misses. This optimization hid memory latency and decreased CPI.
+
+Code Before Optimization:
+void process_data(int *data, int *output, int n) {
+    for (int i = 0; i < n; i++) {
+        // Load data from memory (potential cache miss)
+        int value = data[i];
+
+        // Process the data (dependent on memory load)
+        output[i] = value * 2;
+
+        // Perform some independent work after
+        printf(""Processing index %d\n"", i);
+    }
+}
+
+Code After Optimization:
+void process_data(int *data, int *output, int n) {
+    for (int i = 0; i < n; i++) {
+        // Start the memory load early
+        int value = data[i];
+
+        // Do independent work while waiting for memory fetch
+        printf(""Processing index %d\n"", i);
+
+        // Now use the fetched data
+        output[i] = value * 2;
+    }
+} ",CPI,The 1st level cache misses retired event counter can be used to find the source of cache misses events. Analyze source code to find non-dependant instructions.
+Memory and Data Locality Optimizations,Use Smaller Data Types,"Based on program or algorithmic requirements, choose smallest satisfactory data type.","Narrative:
+Profiling revealed a large number of Level-1 cache misses during access to an array of 64-bit double-precision floating point values. After reviewing the numerical requirements of the algorithm, it was determined that 32-bit single-precision floats would provide sufficient accuracy. Replacing double with float reduced cache pressure, resulting in fewer Level-1 cache misses and lower overall latency.
+
+Code Before Optimization:
+vector<double> data(100000, 0.0);
+
+Code After Optimization:
+vector<float> data(100000, 0.0f);","Less 1st level cache misses, leading to reduced latency","Analyze source code for large data types (e.g., double precision 64-bit), if double precision is deemed unnecessary replace with smaller data type (e.g., single precision float 32-bit). If profiling data is available, look for large number of 1st level cache misses retired events."
+Memory and Data Locality Optimizations,Caching,"Store results of expensive or frequently repeated operations to avoid recomputation or re-fetching. Improves performance, especially for read-heavy workloads.",Database buffer cache storing frequently accessed query results.,"Latency, throughput, cache hit rate",Cache hit/miss rate
+Memory and Data Locality Optimizations,Buffering,"Data is temporarily stored in memory before being sent to its destination, allowing for coalesced, larger I/O operations. This improves throughput but may increase latency.",Using a ring buffer to batch writes in a producer-consumer pipeline or file system write operations.,"Throughput, I/O size","High system call frequency, frequeny small I/O operations, poor I/O throughput"
+Memory and Data Locality Optimizations,Improve cache locality - spatial locality,"Restructure code and data layout and access patterns to increase cache efficiency by maximizing spatial locality (placing related data together).
+Spatial Locality: Optimize Data Layout.
+Group data that is frequently accessed together so they share cache lines.
+Common techniques: struct-field reordering, AoS↔SoA transformations, alignment/padding, and custom memory layouts.","Example 1:
+Profiling revealed code using the bad_locality struct suffered from a high number of cache line replacements. Further analysis revealed that the x and y field were often accessed in sequence. This data is separated by four cache lines. Rearranging the structure as seen in the better_locality struct resulted in half as many cache lines being loaded.
+
+Code Before Optimization:
+struct bad_locality {
+    int x;
+    char strdata[252];
+    int y;
+}
+
+Code After Optimization:
+struct better_locality {
+    int x;
+    int y;
+    char strdata[252];
+}
+
+Example 2:
+In the original implementation, a collection of points was stored using an Array of Structs (AoS). When accessing only one field x, the CPU still loaded the surrounding fields y and z into the cache, leading to inefficient cache utilization. The structure was transformed into a Structure of Arrays (SoA), allowing memory accesses to be concentrated on the required data fields. This optimization reduces cache line waste and improved data locality, resulting in improved memory throughput.
+
+Code Before Optimization:
+// Array of Structs (AoS) - Poor Cache Utilization
+typedef struct {
+    float x;
+    float y;
+    float z;
+} Point;
+
+void process_points(Point *points, int n) {
+    for (int i = 0; i < n; i++) {
+        //When accessing x, the CPU also loads y and z, even if they aren’t immediately needed.
+        points[i].x *= 2.0f;
+        points[i].y *= 2.0f;
+        points[i].z *= 2.0f;
+    }
+}
+
+Code After Optimization:
+// Struct of Arrays (SoA) - Better Cache Utilization
+typedef struct {
+    float *x;
+    float *y;
+    float *z;
+} PointArray;
+
+void process_points(PointArray *points, int n) {
+    for (int i = 0; i < n; i++) {
+        //Accessing points->x[i] only loads x values, avoiding unnecessary y and z loads.
+        points->x[i] *= 2.0f;
+    }
+    for (int i = 0; i < n; i++) {
+        points->y[i] *= 2.0f;
+    }
+    for (int i = 0; i < n; i++) {
+        points->z[i] *= 2.0f;
+    }
+}","Less cache line replacements, increased cache efficiency","Apply when you see:
+Code smells:
+
+Struct fields accessed together but separated by unused data
+
+Runtime symptoms:
+
+High cache miss rate (>10%)
+Memory-bound performance
+Low CPU utilization despite slow execution"
+Memory and Data Locality Optimizations,Improve cache locality - temporal locality,"Restructure code and data layout and access patterns to increase cache efficiency by maximizing temporal locality (reusing data while it remains in cache).
+Temporal Locality: Optimize Access Patterns.
+Access data in an order that reuses it before eviction from cache.
+Common techniques: loop interchange/reordering, loop tiling/blocking, single-pass scans, and streaming-style algorithms.","Temporal Locality: Use Loop interchange to optimize for temporal locality - load data once, use immediately while hot in cache.
+Before:
+for i in range(n_vars):
+    for j in range(i, n_vars):
+        # Pass 1: Compute means
+        for k in range(n_obs):
+            val_i = a[i, k]
+            val_j = a[j, k]
+            sum_i += val_i
+            sum_j += val_j
+        
+        # Pass 2: Compute variance
+        for k in range(n_obs):  # AGAIN!
+            val_i = a[i, k]      # Re-load same data
+            val_j = a[j, k]
+            cov_sum += (val_i - mean_i) * (val_j - mean_j)
+
+After:
+# Pre-allocate accumulators
+sums_i = np.zeros((n_vars, n_vars))
+sums_ij = np.zeros((n_vars, n_vars))
+counts = np.zeros((n_vars, n_vars))
+
+# Single pass through observations
+for k in range(n_obs):
+    obs = a[:, k]  # Load ONCE
+    
+    for i in range(n_vars):
+        for j in range(i, n_vars):
+            # Use cached values immediately
+            sums_i[i,j] += obs[i]
+            sums_ij[i,j] += obs[i] * obs[j]
+            counts[i,j] += 1","cache miss reduction, latency","Apply when you see:
+Code smells:
+
+Multiple passes through same dataset
+Non-contiguous memory access (stride > 1)
+Column-wise access in row-major arrays
+
+Runtime symptoms:
+
+High cache miss rate (>10%)
+Memory-bound performance
+Low CPU utilization despite slow execution"
+Memory and Data Locality Optimizations,Optimize Object Use,"Excessive allocation of temporary objects—particularly inside loops or frequently invoked methods—can lead to significant performance overhead due to increased garbage collection pressure and unnecessary memory churn. To mitigate this, rewrite loops so each iteration performs only essential work: hoist loop-invariant computations outside the loop, replace costly constructs with cheaper alternatives, reuse objects or buffers when possible, and clear collections instead of reallocating them. Together, these techniques reduce per-iteration overhead, minimize transient allocations, and improve overall runtime efficiency.
+","Narrative:
+A new string object was being created at the beginning of every for loop. Moving the allocation outside of the loop decreased the number of objects created.
+
+Code Before Optimization:
+for (int i=0; i<n; i++) {
+    String s = ""hello world!"";
+    doSomethingWithString(s);
+}
+
+Code After Optimization:
+String s = ""hello world!"";
+for (int i=0; i<n; i++) {
+    doSomethingWithString(s);
+}","Memory usage, GC","Look areas where temporary objects can be re-used instead of re-created, especially in loops."
+Memory and Data Locality Optimizations,Reduce memory bloat from RTSJ Immortal Memory,"Creating temporary objects in immortal memory leads to memory bloat and requires the programmer to know the amount of memory needed ahead of time. In this case, it is recommended to create temporary objects in scoped memory then communicate the result using primitives.","Narrative:
+To efficiently perform hashtable lookups, the corresponding method creates a temporary object. It is recommended to call the method in scoped memory, then communicate the result using a primitive variable. Instantiating the temporary object in scoped memory ensures the object is dropped when the scope is exited. This optimization reduces code bloat and memory footprint.
+
+Code After Optimization:
+Runnable DesignPatternToRead=new Runnable()
+{
+    public void run()
+    {
+        String[] y=Main.Tracks.get(T);
+        if ( y[0].equals(""OFF"")) Main.PrimitiveVariable=1;
+        else if ( y[0].equals(""ON"")) Main.PrimitiveVariable=2;
+            else if ( y[0].equals("""")) Main.PrimitiveVariable=0;
+    }
+};
+
+ScopedMemory1.enter(DesignPatternToRead);
+if ( Main.PrimitiveVariable==1)
+{
+     // Update the Track status
+} ",Memory usage,Look for temporary object allocation in immortal memory.
+Memory and Data Locality Optimizations,Cache Eviction Policy,"Configure cache size limits and eviction policies to prevent unbounded memory growth while maintaining acceptable hit rates through intelligent removal of entries. 
+Transform unbounded caches (O(∞) memory) into bounded caches (O(n) fixed memory) by implementing automatic eviction when limits are reached.
+
+","Before:
+pythonCACHES = {
+    ""default"": {
+        ""BACKEND"": ""django.core.cache.backends.locmem.LocMemCache""
+    }
+}
+After:
+pythonCACHES = {
+    ""default"": {
+        ""BACKEND"": ""django.core.cache.backends.locmem.LocMemCache"",
+        ""OPTIONS"": {
+            ""MAX_ENTRIES"": 1000,
+            ""CULL_FREQUENCY"": 3,  # Purge 1/3 of entries when max is reached
+        }
+    }
+}",memory,"If cache keys can be generated from external input (user data, timestamps, UUIDs) and there's no size limit configured → You need an eviction policy."
+Loop Transformations,Remove Conditional by Loop Unrolling,"When a conditional is dependent on loop index, it can often be removed, resulting in simpler and faster code.","Narrative:
+Unrolling a loop that contains a conditional based on the loop index can simplify the code and improve performance by reducing branch mispredictions and loop overhead. By restructuring the loop to process multiple iterations per cycle, conditional checks are eliminated, leading to better instruction-level parallelism.
+
+Code Before Optimization:
+for (i=0; i<1000; i++)
+{
+    if (i & 0x01)
+        do_odd(i);
+    else
+        do_even(i);
+}
+
+Code After Optimization:
+for (i=0; i<1000; i+=2)
+{
+    do_even(i);
+    do_odd(i+1);
+}",ILP,"Optimizing compilers often apply loop transformations automatically. Only consider if loop transformation has not been applied.
+Likely to be applicable when: low trip counts, small loop bodies; low trip counts, large loop bodies."
+Loop Transformations,Loop Distribution (Fission),Loop distribution transformation is a technique used to optimize loops for vectorization. It works by splitting the loop's control flow across different statements within the loop body. This primarily helps to break up data dependence cycles and makes it easier to apply other loop transformations.,"Narrative:
+Performance profiling revealed a bottleneck in the original loop due to a loop-carried dependency in the C(I) = C(I-1) + 1 computation. Each iteration relies on the result of the previous iteration, preventing ILP. To fix this, a loop distribution transformation was applied. This seperated the independent computations into distinct loops, allowing the A(I) = B(I) computation in the first loop to be vectorized.
+
+Code Before Optimization:
+DO I = 2, 100
+    A(I) = B{I) 
+    C(I) = C(I - 1) + 1
+ENDDO
+
+Code After Optimization:
+DO I = 2, 100
+    A(I) = B{I) 
+ENDDO
+Do I = 2, 100
+    C(I) = C(I - 1) + 1
+ENDDO",ILP,"If profiling data is available, look for a CPI greater than 1.0--this is a good indicator that the processor is not being fully utilized and ILP is low. Search for data dependence cycles that can be isolated and apply loop distribution in preparation for loop vectorization."
+Loop Transformations,Loop Fusion,"Loop fusion is a code optimization technique that combines two adjacent loops with identical control flow into a single loop. This is beneficial for reducing overhead, improving loop granularity, and enhancing data locality by consolidating access to the same arrays. This transformation is only possible if it doesn't create backward data dependencies.","Narrative:
+The original code incurs unnecessary loop control overhead. To optimize the code, loop fusion was applied. Since both loops share the same iteration space and have no conflicting data dependencies, they can be safely merged into a single loop. This fix reduces control overhead and improves ILP.
+
+Code Before Optimization:
+DO I = 1, N
+    A(I) = 0
+ENDDO
+DO I = 1, N
+    B(I) = 0
+ENDDO
+
+Code After Optimization:
+Do I = 1, N
+    A(I) = 0
+    B(I) = 0
+ENDDO",ILP,Optimizing compilers apply loop transformations automatically. Only consider if loop transformation has not applied. Loops that share the same iteration space and have no conflicting data dependencies are good candidates for loop fusion.
+Loop Transformations,Loop Peeling,Loop pealing is a code transformation technique that moves parts of a loop's iterations outside the main loop body. This can be used to ensure that array references within the loop are properly alligned in memory.,"Narrative:
+The code before and after optimization demonstrate a simple example of loop pealing.
+
+Code Before Optimization:
+for (i=0; i<16; i++) {
+    a[i] = k
+    k = i;
+}
+
+Code After Optimization:
+a[0] = k;
+k = 0;
+for (i=1; i<16; i++) {
+    a[i] = k;
+    k = i;
+}",ILP,Optimizing compilers apply loop transformations automatically. Only consider if loop transformation has not applied.
+Loop Transformations,Loop Interchanging,Loop interchanging is a code transformation technique that swaps the order of nested loops. This is useful for enforcing unit stride on most frequently accessed array. This transformation is valid if it doesn't introduce data dependencies between the iterations of the outer and inner loops.,"Narrative:
+The code before and after optimization demonstrate a simple example of loop interchanging.
+
+Code Before Optimization:
+DO I=1, M
+    DO J=1, N
+        A(I,J) = 0.0
+    ENDDO
+ENDDO
+
+Code After Optimization:
+DO J=1, N
+    DO I=1, M
+        A(I,J) = 0.0
+    ENDDO
+ENDDO",ILP,Optimizing compilers apply loop transformations automatically. Only consider if loop transformation has not applied.
+Loop Transformations,Loop Invariant Branches,Branches inside loops make it difficult for compilers to perform optimizations. Move invariant branches outside of loop whenever possible.,"Narrative:
+Invariant branches in the code before optimization made it difficult for the compiler to perform optimizations. In the optimized version, the code was restructured by first removing the invariant branches from inside the main loop and then placing loops inside the branches.
+
+Code Before Optimization:
+void BlendBitMap(BYTE Dest[], BYTE Src1[], BYTE Src2[], int size, BYTE blend)
+{
+    int i;
+    for (i=0; i<size; i++) {
+        if (blend == 255)
+            Dest[i] = Src1[i];
+        else if (blend == 0)
+             Dest[i] = Src2[i];
+        else
+            Dest[i] = (Src1[i] * blend + Src2[i] * (255-blend)) / 256;
+    }
+}
+
+Code After Optimization:
+void BlendBitMap(BYTE Dest[], BYTE Src1[], BYTE Src2[], int size, BYTE blend)
+{
+    int i ;
+    if (blend == 255)
+        for (i=0; i<size; i++)
+            Dest[i] = Src1[i];
+    else if (blend == 0)
+        for (i=0; i<size; i++)
+            Dest[i] = Src2[i];
+    else
+        for (i=0; i<size; i++)
+            Dest[i] = (Src1[i] * blend + Src2[i] * (255-blend)) / 256;
+}
+",ILP,"Optimizing compilers apply loop transformations automatically. Only consider if loop transformation has not applied.
+If an invariant branch is present within a loop, see if it can be moved out."
+I/O and Synchronization,Selection I/O size,Choosing the right amount of data to transfer in each I/O operation to balance initialization costs with data access needs.,Using 128KB I/O instead of 128 x 1KB read to improve throughput.,"Throughput, I/O latency, cache efficiency","Performance profiling, I/O tracing"
+I/O and Synchronization,Polling,Continuously checking for an event in a loop can lead to high CPU overhead and latency. Replacing polling with event-driven mechanisms can improve performance and efficiency.,"Replace a custom polling loop with poll(2) syscall to monitor file descriptors in a more efficient, event-driven manner.","CPU usage, event latency","High CPU usage during idle time, delayed event handling, frequent checking loops in code"
+I/O and Synchronization,Non-Blocking I/O,"Avoid blocking threads during I/O operations, allowing the application to scale with fewer threads and lower overhead. This reduces context switching and improves CPU efficiency, especially with many concurrent I/O tasks.","Node.js uses non-blocking I/O to serve many clients with few threads. On Linux, techniques include O_ASYNC, io_submit(2), and io_uring_enter(2)","Thread count, context switches, CPU usage, latency","High thread counts, frequent context switching, blocked I/O traces"
+I/O and Synchronization,Concurrency Control / Rate Limiting,"Limit the number of concurrent operations (I/O requests, API calls, database queries) to prevent resource exhaustion, connection pool depletion, or triggering rate limits. Use concurrency limiting libraries or semaphores to queue operations and execute them in controlled batches, maintaining system stability while still achieving parallelism.","When fetching user availability for multiple users, the system executed all requests concurrently without limits. With 100+ users, this created hundreds of simultaneous database connections, exhausting the connection pool and causing timeouts. By adding a concurrency limit of 10 using p-limit, the system now processes availability checks in controlled batches, maintaining stable performance while still achieving significant parallelism compared to sequential processing.
+
+Code Before Optimization:
+// Unlimited concurrency - spawns 100+ simultaneous operations
+const _getUsersAvailability = async ({ users, query, initialData }) => {
+  return await Promise.all(
+    users.map((user) =>
+      _getUserAvailability({
+        userId: user.id,
+        username: user.username,
+        ...query
+      })
+    )
+  );
+};
+
+Code After Optimization:
+import pLimit from ""p-limit"";
+
+const limit = pLimit(10);  // Max 10 concurrent executions
+
+const _getUsersAvailability = async ({ users, query, initialData }) => {
+  return await Promise.all(
+    users.map((user) =>
+      limit(() =>  // Queue with concurrency control
+        _getUserAvailability({
+          userId: user.id,
+          username: user.username,
+          ...query
+        })
+      )
+    )
+  );
+};","Resource Utilization, Throughput, Latency","Look for Promise.all() or parallel loops processing large arrays with I/O operations, connection pool exhaustion errors, memory spikes during batch operations, or external API rate limit errors when processing multiple items concurrently."
+I/O and Synchronization,Concurrency Control / Lock Optimization,"In performance-critical sections, especially benchmarks or latency-sensitive operations, threads can be migrated between CPU cores by the OS scheduler, causing cache invalidation and context switch overhead. CPU affinity (thread pinning) locks a thread to a specific CPU core, ensuring cache locality, eliminating migration overhead, and providing consistent execution characteristics. This is particularly valuable for real-time systems, low-latency applications, and accurate performance measurements.","In performance-critical sections, especially benchmarks or latency-sensitive operations, threads can be migrated between CPU cores by the OS scheduler, causing cache invalidation and context switch overhead. CPU affinity (thread pinning) locks a thread to a specific CPU core, ensuring cache locality, eliminating migration overhead, and providing consistent execution characteristics. This is particularly valuable for real-time systems, low-latency applications, and accurate performance measurements.
+
+Code before optimization:
+// Benchmark without CPU affinity - thread can migrate between cores
+for (int i = 0; i < iterations; i++) {
+    long start = System.nanoTime();
+    // Perform operation
+    wire.clear();
+    n.writeMarshallable(wire);
+    long end = System.nanoTime();
+    writeHist.sample(end - start);
+    
+    Thread.yield();  // Voluntarily gives up CPU, causes scheduling overhead
+}
+
+Code after optimization:
+// Pin thread to specific CPU core for entire benchmark
+try (AffinityLock lock = AffinityLock.acquireLock()) {
+    // Thread is now pinned to a CPU core
+    
+    // Optional: wait for GC to complete before benchmark
+    GcControls.waitForGcCycle();
+    
+    for (int i = 0; i < iterations; i++) {
+        long start = System.nanoTime();
+        // Perform operation - cache stays hot on same core
+        wire.clear();
+        n.writeMarshallable(wire);
+        long end = System.nanoTime();
+        writeHist.sample(end - start);
+        
+        // No Thread.yield() - continuous execution on same core
+    }
+}  // AffinityLock automatically released","Latency Variance, Cache Miss Rate, Throughput, P99 Latency","Look for performance-critical loops or benchmarks with high timing variance, thread migration visible in profiling tools (e.g., perf stat showing context switches), benchmark code without CPU affinity controls, or latency-sensitive real-time operations that could benefit from predictable execution on a dedicated core."
+I/O and Synchronization,Streaming Implementation Or Optimization),"Refers to processing large datasets incrementally rather than loading everything into memory at once. Data is consumed in small chunks (buffers), processed as it arrives, and discarded when no longer needed. This approach reduces memory usage and allows handling arbitrarily large inputs.","Before:
+def process_file_no_streaming(path):
+    data = open(path, ""rb"").read()   # full file in RAM
+    result = data.upper()            # process all at the same time
+    return result
+
+After:
+def process_file_streaming(path, chunk_size=4096):
+    with open(path, ""rb"") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""""):
+            process_chunk(chunk)
+
+def process_chunk(chunk):
+    # ejemplo trivial
+    print(""processing"", len(chunk), ""bytes"")
+",Memory Utilization,Look for large dynamic memory segments that are processed using chucks
+Data Structure Selection and Adaptation,Choose Data Structure for Energy Efficiency,"Selection between dynamic memory allocation techniques can impact energy use, especially for large datasets.","Narrative:
+In C++, new/delete vs malloc/free: malloc is more energy-efficient for large inputs. For small inputs, static arrays can outperform heap-allocated structures in both C and C++.",Energy Consumption (J),Identify large dynamic memory usage patterns.
+Data Structure Selection and Adaptation,Darwinian Data Structure Selection,"Given a common interface, experiment with multiple data structure implementations. Choose the concrete type that best alligns with the target algorithm's access patterns. ","Narrative:
+The function frequently inserts elements to the end of the list. To optimize insertion performance, LinkedList was chosen over ArrayList due to its O(1) insertion time, compared to ArrayLists O(n) insertion time.
+
+Code Before Optimization:
+List getAsList(T value) {
+    if (value == null)
+        return null; 4
+    List result = new ArrayList();
+    result.add(value);
+    return result;
+}
+
+Code After Optimization:
+List getAsList(T value) {
+    if (value == null)
+        return null; 4
+    List result = new LinkedList();
+    result.add(value);
+    return result;
+}
+","Execution time, CPU Usage, Memory",Analyze source code for data structure access patterns. Consider all implementations of the common ADT and determine which is best suited for the access patterns.
+Data Structure Selection and Adaptation,"Choose more energy-efficient data structure across Java Collections Framework, Apache Common Collections, and Eclipse Collections.","Results show that collections ArrayList, HashMap, and HashTable are not energy-efficient. It is never OK to replace thread-safe collections with thread-unsafe collections. Occurrences of data operations inside of loops should be looked at closely.","Narrative:
+Most frequent recommendations for desktop environment include replacing: Java Collections HashMap with Apache Common Collections HashedMap; Java Collections ArrayList with Eclipse Collection FastList; Java Collections Hashtable with Java Collections ConcurrentHashMap; and, Java Collections HashSet with Eclipse Collections UnifiedSet.",Energy consumption,"Look for areas in code with high energy costs, especially in loops. See if an energy-ineffecient collection is in use. If so, consider replacing with an energy-efficient implementation."
+Data Structure Selection and Adaptation,Choose energy-efficient data structure by method calls,"Considering the most common method call, choose the data structure with the most energy-efficient method call implementation.","Results show that for the Map interface and methods containsKey, get, put, and values, the Hashtable data structure is the most energy-efficient. For the List interface and methods add, listIterator, addAll, iterator, and remove ArrayList was more energy-efficient than LinkedList. When considering method add (at an index) and iterator, AttributeList was found to be the most optimal. For the Set interface and methods add and iterator, LinkedHashSet was found to be more energy-efficient than TreeSet.",Energy consumption & latency,Look for areas in code where the methods present in example are used in conjuction with an inefficient data structure choice.
+Code Smells and Structural Simplification,Remove code bloat by removing optional features,"Optional features tightly coupled with core logic leads to code bloat and additional runtime overhead. Either decouple optional feature from logic, or remove optional feature altogether.","Narrative:
+Logging feature tightly coupled with core logic can introduce unnecessary execution overhead when logging concern is not needed. A potential fix is to separate core and logging logic.",Memory usage,Look for statements that invoke optional (not needed) features.
+Code Smells and Structural Simplification,Remove Unnecessary Method Calls,Unnecessary method calls introduce additional runtime overhead that can be avoided. Remove the method call to eliminate the runtime overhead.,"Narrative:
+A statement is found that invokes an unnecessary method call. To fix, the statement is removed.
+
+Code Before Optimization:
+public void process() {
+    fetchMetadata();  // Unused result
+    doWork();
+}
+
+Code After Optimization:
+public void process() {
+    doWork();
+}",Execution time/latency,Look for statements that invoke unnecessary method calls. Method calls where results are unused can be a good indicator.
+Code Smells and Structural Simplification,Replace Reflection with Direct Method Calls,"Reflection-based method invocation is significantly slower than direct method calls due to runtime type checking, method lookup, and security validation. When method signatures are known at compile time or can be determined through pattern matching, replace reflection with direct calls or cached delegates.","During MSBuild project evaluation, property functions for ToolLocationHelper were using reflection-based lookups, causing performance bottlenecks. By adding fast-path implementations that detect common method signatures (two string parameters) and invoke methods directly, the expensive reflection mechanism was bypassed, reducing evaluation latency.
+
+Code Before Optimization:
+// Reflection-based invocation
+MethodInfo method = type.GetMethod(""GetPlatformSDKLocation"");
+object result = method.Invoke(null, new object[] { arg1, arg2 });
+
+Code After Optimization:
+// Fast-path with direct invocation
+if (ParseArgs.TryGetArgs(args, out string arg1, out string arg2))
+{
+    return ToolLocationHelper.GetPlatformSDKLocation(arg1, arg2);
+}
+// Fall back to reflection only when signature doesn't match",Execution time/latency,"Look for profiling result which shows high time spent in reflection APIs (MethodInfo.Invoke, Type.GetMethod), or performance traces indicating reflection-based bottlenecks in hot paths"
+Code Smells and Structural Simplification,Remove long method by extracting new method,Methods with more than 10 lines are considered long methods. A long method is one with too many variables and functionalities.,"If a method is found to be too long, extract a portion of the code to a new method and call it from inside the old method. ",Promotes code reuse indirectly leading to lower energy consumption,"Look for methods greater than 10 lines in length, and/or methods with large numbers of variables."
+Code Smells and Structural Simplification,Remove duplicate code,"If the same code is found in multiple places, remove the duplicates.","If duplicate code is found within source code, extract to a new method. Remove the duplicate code and call the new method.",Promotes code reuse indirectly leading to lower energy consumption,Look for duplicated code that can be extracted to it's own method.
+Code Smells and Structural Simplification,Minimize feature envy by moving methods,"Feature envy is when one object accesses data of another object more than its own. If an object exhibits this, consider moving the method which accesses the data to the class where the data is being held. If only part of the method accesses the data, then extract that part and place it in a new method in the class where the data is held.","Code Before Optimization:
+class Order {
+    Customer customer;
+
+    public String getCustomerInfo() {
+        return customer.getName() + "", "" + customer.getAddress();
+    }
+}
+
+Code After Optimization:
+class Customer {
+    private String name;
+    private String address;
+
+    public String getInfo() {
+        return name + "", "" + address;
+    }
+}
+
+class Order {
+    Customer customer;
+
+    public String getCustomerInfo() {
+        return customer.getInfo();
+    }
+}","Reduce indirection, possibly leading to reduced latency and energy savings",Look for methods that primarily use another classes methods.
+Code Smells and Structural Simplification,Minimize occurrences of God Class,A God Class is when an object from a class knows too much or does too much. This leads to tighly coupled functionality and should be minimized.,"If a God Class is found, minimize it by extracting fields and moving functionality to separate model classes.","Decouple functionality, possibly leading to energy savings",Look for large classes that don't follow any specific design pattern.
+Code Smells and Structural Simplification,Type Checking,The type checking code smell is when a class uses if-else or switch statements to behave differently based on type value.,"Replace type code with state or strategy refactoring. Essentially each type becomes its own subclass or strategy implementation.
+
+Code Before Optimization:
+class Shape {
+    public static final int CIRCLE = 1;
+    public static final int RECTANGLE = 2;
+    
+    int type;
+
+    public double area() {
+        switch (type) {
+            case CIRCLE:
+                return Math.PI * 10 * 10;
+            case RECTANGLE:
+                return 20 * 30;
+            default:
+                throw new IllegalArgumentException(""Unknown shape type"");
+        }
+    }
+}
+
+Code After Optimization:
+interface Shape {
+    double area();
+}
+
+class Circle implements Shape {
+    public double area() {
+        return Math.PI * 10 * 10;
+    }
+}
+
+class Rectangle implements Shape {
+    public double area() {
+        return 20 * 30;
+    }
+}
+","Reduces duplication, possible leading to energy savings",Look for type checking in classes that resembles pattern matching.
+Build & Compilation & Infrastructure Optimization,Enable Build-Time Optimizations,"Use explicit and unambiguous module references (e.g., including file extensions or fully qualified paths) to help build tools resolve dependencies deterministically, enabling stronger tree-shaking, dead-code elimination, and smaller optimized outputs. This reduces resolver overhead and gives compilers/bundlers clearer information to perform aggressive build-time optimizations.","
+
+Modern bundlers (ESBuild, Webpack, Rollup, TS→JS compilers) perform more aggressive tree-shaking and module pruning when imports include explicit file extensions. This avoids fallback resolution steps, reduces ambiguity, and allows the bundler to optimize dependency graphs more effectively.
+
+// Before:
+import { foo } from ""../core/utils""
+
+// After:
+import { foo } from ""../core/utils.js""",Faster build times,"Identify import or dependency paths that rely on implicit resolution (missing extensions, ambiguous directory indexes, or fallback resolution rules) in projects using bundlers or compilers where making the paths explicit enables improved tree-shaking, dead-code elimination, or smaller build artifacts."
+Build & Compilation & Infrastructure Optimization,Performance-Optimized Dependency Selection,"Upgrade libraries, frameworks, or dependencies to newer versions that provide better performance defaults, faster build pipelines, improved runtime behavior, or more efficient tooling. Modern versions often deliver optimized compilers, reduced overhead, and improved architectures that directly enhance system performance.","
+
+Upgraded Tailwind v3→v4 to leverage its faster compiler, native Vite integration, and simplified CSS-based config, resulting in a more efficient build pipeline and improved performance.","Faster build time, runtime","Apply this pattern whenever newer dependency versions provide measurable performance gains, simplify or modernize the build pipeline, or replace outdated tooling with faster, more efficient alternatives."
+Build & Compilation & Infrastructure Optimization,Compiler Optimization Hints/Directives,"Developers provide explicit hints to the compiler—such as inlining directives, branch prediction hints, loop unrolling pragmas—to guide low-level code generation. These directives help the compiler optimize hot paths that static analysis cannot reliably infer.","
+Before
+public int Add(int a, int b)
+{
+    return a + b;
+}
+
+After (Using Directive)
+[MethodImpl(MethodImplOptions.AggressiveInlining)]
+public int Add(int a, int b)
+{
+    return a + b;
+}","Latency, Throughput, CPU cycles, Instruction-level efficiency","Use compiler directives when A function lies on a verified hot path, Compiler heuristics are insufficient, or Inlining enables further optimizations, such as constant propagation or dead code elimination. These hints should only be applied after profiling has confirmed a true bottleneck. Overuse can increase code size and hurt I-cache performance."
+Build & Compilation & Infrastructure Optimization,Reduce rebuilding size,"Reducing rebuild size means organizing a project so that small changes trigger minimal recompilation or regeneration. By isolating frequently edited components, splitting large modules, and caching intermediate outputs, the build system avoids rebuilding everything and only updates what actually changed.","Before:
+def build():
+    compile_module(""core.py"")
+    compile_module(""utils.py"")
+    compile_module(""ui.py"")
+    package()
+
+After:
+def build():
+    rebuild_if_changed(""core.py"")
+    rebuild_if_changed(""utils.py"")
+    rebuild_if_changed(""ui.py"")
+    package()
+","Faster build times, Smaller build size",Changes in configuration related with build
+Build & Compilation & Infrastructure Optimization,Enable Lazy loading for resource ,"Enabling lazy loading means deferring the loading of a resource until the moment it is actually needed. Instead of allocating memory or performing expensive initialization upfront, the system loads the resource on demand. This reduces startup cost and overall resource usage.","Before:
+class ImageProcessor:
+    def __init__(self, path):
+        self.data = load_image(path)
+
+def load_image(path):
+    print(""loading"", path)
+    return open(path, ""rb"").read()
+
+After:
+class LazyImageProcessor:
+    def __init__(self, path):
+        self.path = path
+        self._data = None
+
+    @property
+    def data(self):
+        if self._data is None:
+            print(""loading"", self.path)
+            self._data = open(self.path, ""rb"").read()
+        return self._data
+",Memory allocation,"Adding Lazy in a frontend environment, Delaying load of objects in memory"
+"Network, Database, and Data Access Optimization",Batch API Requests (N+1),"The N+1 query problem occurs when code makes one initial query to retrieve a list of items, then executes N additional queries (one per item) to fetch related data. This results in N+1 total queries instead of a constant number. The solution is to batch or consolidate these queries into a single request or a small number of bulk requests that fetch all required data at once. This pattern applies to database queries, API calls, and any scenario where individual requests can be aggregated.","The initial implementation executed one query to get all users, then N additional queries (one per user) to fetch their orders, causing severe performance degradation with large datasets. The optimization batched the order queries into a single query using a JOIN or IN clause, reducing query count from N+1 to 2 (or even 1 with a proper JOIN), significantly improving response time and reducing database load.
+
+Code Before Optimization:
+// Fetch all users
+const users = await db.query('SELECT * FROM users WHERE active = true');
+
+// N+1 problem: one query per user for their orders
+for (const user of users) {
+  user.orders = await db.query(
+    'SELECT * FROM orders WHERE user_id = ?', 
+    [user.id]
+  );
+}
+return users;
+
+Code After Optimization:
+// Fetch all users
+const users = await db.query('SELECT * FROM users WHERE active = true');
+const userIds = users.map(u => u.id);
+
+// Batch query: single query for all orders
+const orders = await db.query(
+  'SELECT * FROM orders WHERE user_id IN (?)',
+  [userIds]
+);
+
+// Group orders by user_id in memory
+const ordersByUser = orders.reduce((acc, order) => {
+  acc[order.user_id] = acc[order.user_id] || [];
+  acc[order.user_id].push(order);
+  return acc;
+}, {});
+
+// Assign orders to users
+users.forEach(user => {
+  user.orders = ordersByUser[user.id] || [];
+});
+
+return users;
+","latency, throughput","Look for loops containing database queries or API calls where the query count grows linearly with input size (N items → N+1 requests), identifiable through query logging, APM tools showing repeated similar queries with different parameters, or profiling that reveals database/network time dominating request latency."
+"Network, Database, and Data Access Optimization",Minimize Payload Size / Pass Reference Instead of Value,"When transferring data between systems, services, or components, avoid embedding large objects or datasets directly in requests or messages. Instead, pass lightweight references (IDs, URLs, keys) and allow the recipient to fetch the full data only when needed. This reduces payload size, network bandwidth consumption, and serialization/deserialization overhead. This pattern is especially effective when the recipient may not need all the data or when the same large object is referenced multiple times.","
+The initial implementation eagerly embedded complete related objects (including their sub-relationships) in every response, resulting in megabyte-sized payloads even for simple queries. By switching to passing only IDs/references for related entities, payload sizes dropped by 90%, reducing network transfer time, serialization costs, and client-side parsing overhead. Clients can now selectively fetch related data only when needed via separate endpoints.
+
+
+Code Before Optimization:
+// Returns 500KB+ with all nested relationships
+interface UserResponse {
+  id: string;
+  name: string;
+  posts: Post[];           // Full post objects (50KB each)
+  followers: User[];       // Full nested user objects
+  following: User[];       // Full nested user objects
+}
+
+const user = await db.users.findOne({
+  where: { id: req.params.id },
+  include: [Post, { model: User, as: 'followers' }, { model: User, as: 'following' }]
+});
+res.json(user);  // Massive payload
+
+Code After Optimization:
+// Returns 2KB with just IDs
+interface UserResponse {
+  id: string;
+  name: string;
+  postIds: string[];       // Just IDs (100 bytes)
+  followerIds: string[];   // Just IDs
+  followingIds: string[];  // Just IDs
+}
+
+const user = await db.users.findOne({
+  where: { id: req.params.id },
+  attributes: ['id', 'name']
+});
+
+const postIds = await db.posts.findAll({
+  where: { userId: user.id },
+  attributes: ['id']
+}).map(p => p.id);
+
+res.json({ ...user, postIds, followerIds, followingIds });  // Minimal payload","payload size, network bandwidth, latency, memory,  cache efficiency","Look for API responses or messages with large payload sizes (>100KB), nested objects with multiple levels of depth, repeated embedded objects that could be referenced by ID, or performance traces showing significant time spent in serialization/deserialization and network transfer."
+"Network, Database, and Data Access Optimization",Lazy Loading / Deferred Initialization,"Defer fetching, loading, or constructing data and resources until they are actually needed. Instead of eagerly retrieving large datasets, performing expensive parsing/decompression, or allocating heavy data structures upfront, shift this work to the point of first use. This reduces startup cost, network and I/O overhead, peak memory usage, and avoids performing work for data that may never be accessed.","Example 1 – Lazy Data Fetching (Network/DB)
+// Before: Eager loading
+const allItems = await fetchAllItems();  // 10,000 items
+
+// After: Lazy loading
+const currentItem = await fetchItem(currentIndex);  // 1 item
+
+Example 2 – Deferred Local Initialization (Data Access / Internal Loading)
+# Before: eager parsing, decompression, and allocation
+reg = RegistryInstance(... fully loaded ...)
+
+# After: lazy initialization triggered on property access
+reg = RegistryInstance(path, tree_info, compressed_file)
+
+@inline function Base.getproperty(r::RegistryInstance, f::Symbol)
+    if f in (:pkgs, :name, :uuid)
+        isdefined(r, :pkgs) || _ensure_registry_loaded_slow!(r)
+    end
+    getfield(r, f)
+end
+","Initial load time, payload size, Bandwidth usage","Apply when: 
+API responses contain large arrays/lists;
+Most fetched data is never accessed by users;
+High ""Time to Interactive"" metrics;
+Large initial bundle/payload size;
+Analytics show users view <10% of fetched data."
+"Network, Database, and Data Access Optimization", Relational Query Consolidation (N+1),"Replace multiple sequential queries that traverse relationships with a single query that uses relational operations (JOINs, subqueries, or includes) to fetch related data together, eliminating separate round-trips by leveraging the database's ability to perform set-based operations.","// Before: N+1
+const user = await prisma.user.findUnique({ where: { id } });
+const posts = await user.posts();
+
+// After: Consolidation
+const user = await prisma.user.findUnique({
+  where: { id },
+  include: { posts: true }
+});","Latency, Throughput, CPU/IO Utilization","Flag code that issues repeated queries inside a loop when traversing related objects, or when ORM logs show many nearly identical SELECT statements differing only by a foreign key. This indicates a classic N+1 pattern that can be consolidated into a single relational query."

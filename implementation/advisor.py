@@ -53,8 +53,19 @@ class MoEAdvisor:
 
         # Retrieve patterns per expert (simple hints for now)
         retrieved = self.kb.retrieve_by_category_hint(" ".join(routing.selected_experts), limit=10)
+        # retrieved_patterns = [
+        #     {"name": p.name, "category": p.category, "description": p.description, "preconditions": p.preconditions}
+        #     for p in retrieved
+        # ]
         retrieved_patterns = [
-            {"name": p.name, "category": p.category, "description": p.description, "preconditions": p.preconditions}
+            {
+                "name": p.name,
+                "category": p.category,
+                "description": p.description,
+                "example": getattr(p, "example", None),
+                "optimized_metrics": getattr(p, "optimized_metrics", None),
+                "detection": getattr(p, "detection", None),
+            }
             for p in retrieved
         ]
 

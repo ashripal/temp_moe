@@ -62,9 +62,14 @@ class BaseExpert:
             if errors:
                 raise ValueError(f"{self.name} candidate {i} schema errors: {errors}\nCandidate:\n{d}")
 
-            pattern = d["pattern"].strip()
-            if pattern not in self.kb.allowed_patterns():
-                raise ValueError(f"{self.name} proposed pattern not in catalog: '{pattern}'")
+            # pattern = d["pattern"].strip()
+            # if pattern not in self.kb.allowed_patterns():
+            #     raise ValueError(f"{self.name} proposed pattern not in catalog: '{pattern}'")
+
+            pattern_raw = d["pattern"].strip()
+            pattern = self.kb.canonical_pattern(pattern_raw)
+            if pattern is None:
+                raise ValueError(f"{self.name} proposed pattern '{pattern_raw}' not recognized in catalog.")
 
             candidates.append(
                 CandidateAction(

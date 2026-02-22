@@ -29,3 +29,7 @@ def test_mem_saxpy_baseline_vs_compiler_flags():
     assert base_cs == tuned_cs
     # This test mainly ensures the harness runs and measures; you’ll expand this when you add real transformations.
     assert tuned.mean <= base.mean * 1.20
+
+    print("Baseline mean:", base.mean)
+    print("Optimized mean:", tuned.mean)
+    print("Speedup:", base.mean / tuned.mean)

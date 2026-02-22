@@ -44,3 +44,7 @@ def test_omp_imbalance_schedule_tuning():
     sp = speedup(base.mean, tuned.mean)
     # We don't require huge gains on every machine, but should not regress badly
     assert tuned.mean <= base.mean * 1.10, f"Tuned regressed too much (speedup={sp:.3f})"
+    
+    print("Baseline mean:", base.mean)
+    print("Optimized mean:", tuned.mean)
+    print("Speedup:", base.mean / tuned.mean)

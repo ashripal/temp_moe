@@ -315,37 +315,80 @@ class CodeAnalyzer:
             return "python"
         return "unknown"
 
+    # def _infer_memory_intensity(self, source_text: str) -> bool:
+    #     """
+    #     Heuristically infer whether the code appears memory-intensive.
+
+    #     This uses practical keyword checks only. It does not attempt true
+    #     performance modeling.
+    #     """
+    #     memory_keywords = [
+    #         "malloc",
+    #         "calloc",
+    #         "free",
+    #         "memcpy",
+    #         "memset",
+    #         "double *",
+    #         "float *",
+    #         "int *",
+    #         "[i]",
+    #         "[j]",
+    #         "[k]",
+    #     ]
+
+    #     score = 0
+    #     lowered = source_text.lower()
+
+    #     for keyword in memory_keywords:
+    #         if keyword.lower() in lowered:
+    #             score += 1
+
+    #     # A low threshold is fine here because this is just a hint for the
+    #     # advisor and not a hard classification.
+    #     return score >= 3
     def _infer_memory_intensity(self, source_text: str) -> bool:
         """
         Heuristically infer whether the code appears memory-intensive.
 
-        This uses practical keyword checks only. It does not attempt true
-        performance modeling.
+        This is intentionally lightweight and keyword-based. The goal is to detect
+        common memory-bound benchmark patterns such as:
+        - repeated array indexing
+        - dynamic allocation
+        - memcpy / memset style operations
+        - explicit comments indicating memory-bound behavior
         """
-        memory_keywords = [
+        lowered = source_text.lower()
+
+        # Signals commonly associated with memory-heavy kernels.
+        keyword_signals = [
             "malloc",
             "calloc",
             "free",
             "memcpy",
             "memset",
-            "double *",
-            "float *",
-            "int *",
-            "[i]",
-            "[j]",
-            "[k]",
+            "memory-bound",
+            "memory bound",
+            "bandwidth",
+            "cache",
         ]
 
-        score = 0
-        lowered = source_text.lower()
+        # Count keyword-based signals.
+        score = sum(1 for keyword in keyword_signals if keyword in lowered)
 
-        for keyword in memory_keywords:
-            if keyword.lower() in lowered:
-                score += 1
+        # Count array-style indexed accesses, which are common in streaming kernels.
+        array_accesses = len(re.findall(r"\b[A-Za-z_]\w*\s*\[\s*[A-Za-z_]\w*\s*\]", source_text))
+        if array_accesses >= 3:
+            score += 2
+        elif array_accesses >= 1:
+            score += 1
 
-        # A low threshold is fine here because this is just a hint for the
-        # advisor and not a hard classification.
-        return score >= 3
+        # Count pointer declarations as a weak supporting signal.
+        pointer_decls = len(re.findall(r"\b(?:double|float|int|char)\s*\*\s*[A-Za-z_]\w*", source_text))
+        if pointer_decls >= 2:
+            score += 1
+
+        # Keep the threshold moderate so obvious kernels like SAXPY are detected.
+        return score >= 2
 
     def _build_summary_text(
         self,

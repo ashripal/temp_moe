@@ -52,7 +52,8 @@ class MoEAdvisor:
         routing = self.router.route(telemetry_struct)
 
         # Retrieve patterns per expert (simple hints for now)
-        retrieved = self.kb.retrieve_by_category_hint(" ".join(routing.selected_experts), limit=10)
+        # retrieved = self.kb.retrieve_by_category_hint(" ".join(routing.selected_experts), limit=10)
+        retrieved = self.kb.retrieve_by_category_hint(" ".join(routing.selected_experts), limit=3)
         # retrieved_patterns = [
         #     {"name": p.name, "category": p.category, "description": p.description, "preconditions": p.preconditions}
         #     for p in retrieved

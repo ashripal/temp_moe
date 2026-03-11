@@ -30,4 +30,26 @@ Constraints:
 - If race-freedom cannot be guaranteed, prefer schedule/thread/job tuning instead of DOALL.
 - Keep changes small and reversible.
 
-Return JSON only.
+Output a JSON array containing exactly 1 candidate action object.
+
+Return ONLY a valid JSON array.
+Do not include markdown code fences.
+Do not include explanations, prose, URLs, comments, placeholders, or extra text.
+Use only pattern names from ALLOWED_PATTERNS_JSON.
+If you cannot produce a valid candidate, return [].
+
+The array must contain exactly this JSON shape:
+[
+  {
+    "pattern": "EXACT_PATTERN_FROM_ALLOWED_LIST",
+    "target": "short target",
+    "rationale": "short rationale",
+    "action_sketch": "short action",
+    "preconditions": ["short precondition"],
+    "parameters_to_sweep": {"variant": [1, 2]},
+    "correctness_checks": ["short check"],
+    "performance_metrics": ["runtime"],
+    "risk_level": "low",
+    "rollback_criteria": ["short rollback criterion"]
+  }
+]

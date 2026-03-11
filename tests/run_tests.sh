@@ -67,6 +67,8 @@ ALL_TESTS=(
     tests/test_code_analyzer.py
     tests/test_profiler_parser.py
     tests/test_telemetry_extractor.py
+    tests/test_llm_backends.py
+    tests/test_advisor_hf_integration.py
 )
 
 ANALYSIS_TESTS=(

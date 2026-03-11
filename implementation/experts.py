@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
@@ -19,6 +21,16 @@ class ExpertContext:
     retrieved_patterns: List[Dict[str, Any]]  # small excerpts
 
 
+def _strip_code_fences(text: str) -> str:
+    text = text.strip()
+
+    fenced_json = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", text, flags=re.IGNORECASE)
+    if fenced_json:
+        return fenced_json.group(1).strip()
+
+    return text
+
+
 class BaseExpert:
     name: str
     template_file: str
@@ -33,38 +45,55 @@ class BaseExpert:
         self.template = env.get_template(self.template_file)
 
     def propose(self, ctx: ExpertContext) -> ExpertOutput:
+        allowed_patterns = sorted({p["name"] for p in ctx.retrieved_patterns if p.get("name")})
+        if not allowed_patterns:
+            allowed_patterns = sorted(self.kb.allowed_patterns())
+
         prompt = self.template.render(
             expert_name=self.name,
             code_snippets=ctx.code_snippets,
             profiling_summary=ctx.profiling_summary,
             telemetry_summary=ctx.telemetry_summary,
             retrieved_patterns=ctx.retrieved_patterns,
-            allowed_patterns=sorted(self.kb.allowed_patterns()),
+            allowed_patterns=allowed_patterns,
         )
 
         raw = self.llm.complete([
-            LLMMessage(role="system", content=f"You are {self.name}."),
+            LLMMessage(
+                role="system",
+                content=(
+                    f"You are {self.name}. "
+                    "Return only a valid JSON array of candidate action objects. "
+                    "Do not include markdown fences, explanations, or any extra text."
+                ),
+            ),
             LLMMessage(role="user", content=prompt),
         ])
 
+        cleaned = _strip_code_fences(raw)
+        print(f"\n=== RAW LLM OUTPUT ({self.name}) ===\n{raw}\n")
+        print(f"\n=== CLEANED LLM OUTPUT ({self.name}) ===\n{cleaned}\n")
+
+
         try:
-            parsed = json.loads(raw)
+            parsed = json.loads(cleaned)
             if not isinstance(parsed, list):
                 raise ValueError("Expert output must be a JSON list of candidate dicts.")
         except Exception as e:
-            raise ValueError(f"{self.name} returned invalid JSON: {e}\nRaw:\n{raw}")
+            raise ValueError(
+                f"{self.name} returned invalid JSON: {e}\n"
+                f"Raw response:\n{raw}\n\n"
+                f"Cleaned response:\n{cleaned}"
+            )
 
         candidates: List[CandidateAction] = []
         for i, d in enumerate(parsed):
             if not isinstance(d, dict):
-                raise ValueError(f"{self.name} candidate {i} is not a dict.")
+                # raise ValueError(f"{self.name} candidate {i} is not a dict.")
+                raise ValueError(f"{self.name} candidate {i} is not a dict. Got: {type(d).__name__} -> {d}")
             errors = validate_candidate_dict(d)
             if errors:
                 raise ValueError(f"{self.name} candidate {i} schema errors: {errors}\nCandidate:\n{d}")
-
-            # pattern = d["pattern"].strip()
-            # if pattern not in self.kb.allowed_patterns():
-            #     raise ValueError(f"{self.name} proposed pattern not in catalog: '{pattern}'")
 
             pattern_raw = d["pattern"].strip()
             pattern = self.kb.canonical_pattern(pattern_raw)

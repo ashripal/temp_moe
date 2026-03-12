@@ -35,3 +35,9 @@ temp_moe/
 # OS
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env
+
+# Python Environment
+.venv/

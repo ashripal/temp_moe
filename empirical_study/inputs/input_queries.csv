@@ -1,0 +1,10 @@
+MPI_Init language:C
+MPI_Comm_rank language:C++
+MPI_Send language:C
+"#pragma omp parallel" language:C++
+"#pragma omp parallel for" language:C
+"#pragma omp target" language:C++
+__global__ language:C++
+cudaMalloc language:C++
+cudaMemcpy language:C++
+__global__ cudaMalloc language:C++

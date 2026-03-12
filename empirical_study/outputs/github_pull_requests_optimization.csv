@@ -1,0 +1,302 @@
+pr_id,pr_number,pr_html_url,title,state,is_draft,user_login,repo_full_name,base_branch,head_branch,created_at,updated_at,closed_at,merged_at,matched_keywords,body_snippet,comments,review_comments,commits,additions,deletions,changed_files,mergeable_state
+1582159992,1014,https://github.com/3dem/relion/pull/1014,Quick update for MPI collective block size and minor SYCL document update,closed,False,do-jason,3dem/relion,master,qfix_mpi_block,2023-11-01T06:54:27Z,2023-11-01T11:03:59Z,2023-11-01T06:55:10Z,,performance,"This will update default MPI block size only when ""-DUSE_MPI_COLLECTIVE"" is enabled. This is default for ALTCPU and SYCL. It has no impact when ""-DUSE_MPI_COLLECTIVE"" is not set.
+The default 512MB for MPI collective may increase file descriptor usage and result in error or lower performance at multi-node scale. I've erroneously committed in ""relion-devel"" branch without PR, sorry about that.",1,0,588,43680,15042,311,unknown
+1582163855,1015,https://github.com/3dem/relion/pull/1015,Change MPI block size and minor SYCL document update,closed,False,do-jason,3dem/relion,ver5.0,qfix_mpi_block,2023-11-01T06:58:24Z,2023-11-01T11:03:58Z,2023-11-01T07:34:15Z,2023-11-01T07:34:15Z,performance,"This will update default MPI block size only when ""-DUSE_MPI_COLLECTIVE"" is enabled. This is default for ALTCPU and SYCL. It has no impact when ""-DUSE_MPI_COLLECTIVE"" is not set.
+The default 512MB for MPI collective may increase file descriptor usage and result in error or lower performance at multi-node scale.
+
+I've erroneously committed in ""relion-devel"" branch without PR and there is closed ",1,0,1,5,5,2,unknown
+1623380251,1039,https://github.com/3dem/relion/pull/1039,Implemented memory pool for SYCL device/host memory,closed,False,do-jason,3dem/relion,ver5.0,sycl_memory_pool,2023-11-30T10:13:41Z,2023-12-04T03:00:04Z,2023-12-04T02:59:47Z,2023-12-04T02:59:47Z,performance,"Implemented memory pool for SYCL device/host memory. (added src/acc/sycl/sycl_memory_pool.*)
+- All except ZE_* and ZEX_* environment variables are not necessary.
+- Now ""ulimit -n"" is not necessary in most cases.
+
+Tuned SYCL kernel workgroup size.
+- Showed significant improvement in 2D classification performance.
+
+Fixed AccPtr host memory leak in PassWeights.weights.  (src/acc/acc_ml_optimis",5,0,5,857,209,27,unknown
+2196667654,1207,https://github.com/3dem/relion/pull/1207,Updated double precision constant divisions in helix.cpp,closed,False,Arpan3323,3dem/relion,ver5.0,patch-2,2024-11-24T08:27:34Z,2024-11-24T09:37:50Z,2024-11-24T09:37:50Z,2024-11-24T09:37:50Z,optimiz,"Hi, I noticed some double precision constant divisions in helix.cpp and saw room for potential efficiency improvement as divisions are generally more expensive.
+  
+### What is changed?
+- Updated multiple occurrences of division by a constant double to multiplication by a constant double
+- The updates are of this nature: `some_double_precision_number / 2.` to `some_double_precision_number * 0.5",1,0,1,70,70,1,unknown
+2436011709,1258,https://github.com/3dem/relion/pull/1258,CPU kernel patch for oneAPI compiler performance workaround and code refactoring,closed,False,do-jason,3dem/relion,ver5.0,intel_opt,2025-04-03T05:49:27Z,2025-04-03T07:09:54Z,2025-04-03T07:09:46Z,2025-04-03T07:09:46Z,performance,"Add macro function to replace inline function (TRANSLATE_PIXEL_2D, TRANSLATE_PIXEL_3D)
+Add ""USE_SINCOS_TABLE"" macro to CPU acceleration code for alternative code path
+Add ""#pragma forceinline"" for project2Dmodel/project3Dmodel functions
+Add alignas in CPU kernel function's arrays
+Add ""#if _OPENMP"" to protect ""#pragma omp simd"" pragmas from old compiler
+Add ""#pragma omp simd simdlen"" for some ",5,0,14,1691,2205,13,unknown
+2444779899,1259,https://github.com/3dem/relion/pull/1259,SYCL optimization for cache friendly data structure,closed,False,do-jason,3dem/relion,ver5.0,intel_opt,2025-04-08T03:43:15Z,2025-04-08T04:54:46Z,2025-04-08T04:54:46Z,2025-04-08T04:54:46Z,optimiz | optimization,"- Merge mdlReal and mdlImag to a single array with doubled size for cache efficient access
+- Make required change and some cleanups for this mdlReal/mdlImag to mdlComplex in the required files in src/acc/ directory
+- Change no_tex2D and no_tex3D to this mdlReal and mdlImag merging optimization (src/acc/sycl/sycl_kernels/sycl_utils.h)
+- Remove unused complex2D and complex3D
+- Change the locatio",1,0,2,136,235,5,unknown
+380378089,581,https://github.com/3dem/relion/pull/581,"Fix timers, optimize two kernels, fixed issue with pixel coordinate calculation",closed,False,arom4github,3dem/relion,nvidia-optim2,optim2,2020-02-26T16:21:30Z,2020-03-06T14:45:48Z,2020-02-28T12:35:27Z,2020-02-28T12:35:27Z,optimiz,it's safer to use `blockDim.x` instead of a predefined constant.,2,0,1,28,56,2,dirty
+483168390,671,https://github.com/3dem/relion/pull/671,Devel altcpu 2dopt,closed,False,CharlesCongdon,3dem/relion,ver3.1,devel-altcpu-2dopt,2020-09-09T22:14:08Z,2020-09-16T14:56:18Z,2020-09-16T14:56:18Z,2020-09-16T14:56:18Z,optimiz | optimization,Merge latest  altcpu optimizations into 3.1,1,0,16,565,498,10,unknown
+489142339,678,https://github.com/3dem/relion/pull/678,PORT: bring FFT stuff to GPU for backprojection,closed,False,arom4github,3dem/relion,ver3.1,optim5,2020-09-18T07:49:33Z,2022-09-09T10:41:46Z,2022-09-09T10:41:35Z,,optimiz,this PR brings cuFFT for the `back-projection` stage. We also optimized data locality and removed some redundant sync points.,2,0,1,566,35,10,unknown
+680794863,783,https://github.com/3dem/relion/pull/783,Support for disabling and tuning stream buffers,closed,False,andschenk,3dem/relion,ver3.1,ver3.1,2021-06-30T11:45:04Z,2021-07-02T07:53:54Z,2021-07-02T02:17:25Z,,performance,"This patch adds support for tuning the size of the stream buffer for reading mrcs stacks in Relion.
+
+
+Rationale for the patch:
+When running Relion on large, network attached file systems it can show a very unfavorable caching behavior when reading particle stacks. With large Lustre and GPFS file systems we have seen that data requested through the network (IB in our case) can reach 10x the dat",6,0,1,27,6,1,unknown
+1126943050,936,https://github.com/3dem/relion/pull/936,Adding HIP implementation,closed,False,suyashtn,3dem/relion,master,suyash/ver4.0-hip,2022-11-18T04:05:36Z,2023-11-01T07:34:51Z,2023-11-01T07:34:51Z,,optimiz | optimization,New port with AMD ROCm and HIP optimizations is implemented that allows RELION 4 to be executed on A+A hardware with AMD Instinct GPUs. Branch `suyash/ver4.0-hip` from `suyashtn/relion` has been rebased onto the `master` of `3dem/relion` and contains latest developments from the official repository. The HIP port has been tested and validated using plasmodium ribosome (2D/3D) and other benchmarks o,2,0,21,10036,732,60,unknown
+3247055151,100,https://github.com/AK-Kleemiss/NoSpherA2/pull/100,speed up bessel_sfac,closed,False,FlorianKleemiss,AK-Kleemiss/NoSpherA2,master,tsc_cif,2026-02-04T18:55:03Z,2026-02-06T17:23:21Z,2026-02-06T17:23:20Z,2026-02-06T17:23:20Z,performance,"This pull request introduces several improvements and refactorings to the handling of Gaussian primitives and the calculation of scattering factors. The main focus is on improving normalization, ensuring consistency in calculations, and cleaning up the code for clarity and efficiency.
+
+**Enhancements to Gaussian primitive normalization and usage:**
+
+* Added new members to the `primitive` class",0,0,90,36,13,5,unknown
+3307243220,107,https://github.com/AK-Kleemiss/NoSpherA2/pull/107,EMBIS and MBIS plus speed up,open,False,FlorianKleemiss,AK-Kleemiss/NoSpherA2,master,tsc_cif,2026-02-20T10:31:14Z,2026-03-04T19:53:40Z,,,performance,"This pull request introduces several improvements and refactors to the grid generation and partitioning logic, primarily focusing on enabling MBIS and EMBIS partitioning schemes, generalizing grid generation routines, and updating data structures for greater flexibility. The changes also include updates to compiler flags and Visual Studio paths for improved compatibility and performance.
+
+Partit",5,6,146,6426,4272,59,unstable
+2737033829,38,https://github.com/AK-Kleemiss/NoSpherA2/pull/38,deps: bump actions/cache from 4.2.3 to 4.2.4,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/actions/cache-4.2.4,2025-08-11T22:08:25Z,2025-09-02T12:44:24Z,2025-08-12T21:42:58Z,2025-08-12T21:42:58Z,performance,"Bumps [actions/cache](https://github.com/actions/cache) from 4.2.3 to 4.2.4.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/actions/cache/releases"">actions/cache's releases</a>.</em></p>
+<blockquote>
+<h2>v4.2.4</h2>
+<h2>What's Changed</h2>
+<ul>
+<li>Update README.md by <a href=""https://github.com/nebuk89""><code>@​nebuk89</code></a> in <a href=""https://red",0,0,1,14,14,3,unknown
+2871542730,60,https://github.com/AK-Kleemiss/NoSpherA2/pull/60,deps: bump actions/cache from 4.2.4 to 4.3.0,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/actions/cache-4.3.0,2025-09-29T18:00:47Z,2025-10-01T07:17:48Z,2025-09-29T19:45:53Z,2025-09-29T19:45:53Z,performance,"Bumps [actions/cache](https://github.com/actions/cache) from 4.2.4 to 4.3.0.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/actions/cache/releases"">actions/cache's releases</a>.</em></p>
+<blockquote>
+<h2>v4.3.0</h2>
+<h2>What's Changed</h2>
+<ul>
+<li>Add note on runner versions by <a href=""https://github.com/GhadimiR""><code>@​GhadimiR</code></a> in <a href",0,0,1,5,5,3,unknown
+2890504222,63,https://github.com/AK-Kleemiss/NoSpherA2/pull/63,deps: bump actions/cache from 4.2.4 to 4.3.0,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/actions/cache-4.3.0,2025-10-06T14:29:07Z,2025-10-26T20:31:04Z,2025-10-26T20:31:02Z,,performance,"Bumps [actions/cache](https://github.com/actions/cache) from 4.2.4 to 4.3.0.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/actions/cache/releases"">actions/cache's releases</a>.</em></p>
+<blockquote>
+<h2>v4.3.0</h2>
+<h2>What's Changed</h2>
+<ul>
+<li>Add note on runner versions by <a href=""https://github.com/GhadimiR""><code>@​GhadimiR</code></a> in <a href",1,0,1,2,2,1,unknown
+3102513560,86,https://github.com/AK-Kleemiss/NoSpherA2/pull/86,deps: bump actions/cache from 4.2.4 to 5.0.1,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/actions/cache-5.0.1,2025-12-15T13:24:30Z,2025-12-23T23:21:17Z,2025-12-15T20:02:07Z,2025-12-15T20:02:07Z,performance,"Bumps [actions/cache](https://github.com/actions/cache) from 4.2.4 to 5.0.1.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/actions/cache/releases"">actions/cache's releases</a>.</em></p>
+<blockquote>
+<h2>v5.0.1</h2>
+<blockquote>
+<p>[!IMPORTANT]
+<strong><code>actions/cache@v5</code> runs on the Node.js 24 runtime and requires a minimum Actions Runner vers",0,0,1,7,7,4,unknown
+3122933089,89,https://github.com/AK-Kleemiss/NoSpherA2/pull/89,deps: bump github/codeql-action from 4.31.8 to 4.31.9,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/github/codeql-action-4.31.9,2025-12-22T13:17:58Z,2026-01-31T22:27:44Z,2026-01-06T19:08:43Z,2026-01-06T19:08:43Z,performance,"Bumps [github/codeql-action](https://github.com/github/codeql-action) from 4.31.8 to 4.31.9.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/github/codeql-action/releases"">github/codeql-action's releases</a>.</em></p>
+<blockquote>
+<h2>v4.31.9</h2>
+<h1>CodeQL Action Changelog</h1>
+<p>See the <a href=""https://github.com/github/codeql-action/releases"">releas",0,0,1,9,9,3,unknown
+3188281590,92,https://github.com/AK-Kleemiss/NoSpherA2/pull/92,deps: bump actions/cache from 5.0.1 to 5.0.2,closed,False,dependabot[bot],AK-Kleemiss/NoSpherA2,master,dependabot/github_actions/actions/cache-5.0.2,2026-01-19T15:42:36Z,2026-01-31T22:27:23Z,2026-01-27T17:29:39Z,2026-01-27T17:29:39Z,performance,"Bumps [actions/cache](https://github.com/actions/cache) from 5.0.1 to 5.0.2.
+<details>
+<summary>Release notes</summary>
+<p><em>Sourced from <a href=""https://github.com/actions/cache/releases"">actions/cache's releases</a>.</em></p>
+<blockquote>
+<h2>v.5.0.2</h2>
+<h1>v5.0.2</h1>
+<h2>What's Changed</h2>
+<p>When creating cache entries, 429s returned from the cache service will not be retried.</p>
+</blo",0,0,1,6,6,3,unknown
+436752520,1035,https://github.com/AMReX-Codes/amrex/pull/1035,Update HDF5 particle write and benchmark codes,closed,False,houjun,AMReX-Codes/amrex,development,development,2020-06-18T20:42:32Z,2020-06-18T22:53:06Z,2020-06-18T22:53:05Z,2020-06-18T22:53:05Z,performance,"- Fix MPI datatype issue
+- Performance improvements on HDF5 particle write",0,0,8,205,74,5,unknown
+444251520,1095,https://github.com/AMReX-Codes/amrex/pull/1095,CMake: More NVCC Controls,closed,False,ax3l,AMReX-Codes/amrex,development,topic-moreCUDAcmakeFlags,2020-07-04T07:25:18Z,2020-07-16T18:58:49Z,2020-07-16T18:58:44Z,2020-07-16T18:58:44Z,performance,"Add control for more debug and warning flags with NVCC.
+
+- [x] ptx debug infos: performance neutral and good
+- [x] compilation timer: useful for interactions with Nvidia engineers & compile-time tuning
+- [x] keep files: good for inspecting generated PTX code
+- [x] warnings: accidental capture of `this` (CUDA11+)
+- [x] device LTO: awesome new feature to try (CUDA11+)
+- [x] unknown flags: jus",0,7,2,172,8,2,unknown
+138990178,110,https://github.com/AMReX-Codes/amrex/pull/110,optimization of IFFAB copy,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,weiqun/iffabcopy,2017-09-01T23:48:38Z,2017-09-09T20:13:08Z,2017-09-02T02:40:57Z,2017-09-02T02:40:57Z,optimiz | optimization,,0,0,1,36,23,3,unknown
+451541377,1154,https://github.com/AMReX-Codes/amrex/pull/1154,Optimization of TagBoxArray::collate,closed,True,WeiqunZhang,AMReX-Codes/amrex,development,tagbox_sumboundary,2020-07-17T23:19:41Z,2020-07-20T19:19:29Z,2020-07-20T19:19:21Z,,optimiz | optimization,"Use a new way to remove duplicated tags.  Instead of removing duplicated from vector, we remove
+duplicates when tags are still stored in FabArray.  Because they are in FabArray with a BoxArray
+that has no overlapped valid cells, we can use ParallelAdd to remove duplicates due to the overlap
+of valid cells with ghost cells.
+
+Assertion in AmrCore on blocking factor to make sure that there are n",0,0,1,72,194,4,unknown
+453755905,1156,https://github.com/AMReX-Codes/amrex/pull/1156,Optimization of TagBoxArray::collate,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,tagbox_collate,2020-07-20T19:20:07Z,2020-07-20T20:02:43Z,2020-07-20T20:02:36Z,2020-07-20T20:02:36Z,optimiz | optimization,"Use a new way to remove duplicated tags.  Instead of removing duplicated from vector, we remove
+duplicates when tags are still stored in FabArray.  Because they are in FabArray with a BoxArray
+that has no overlapped valid cells, we can use ParallelAdd to remove duplicates due to the overlap
+of valid cells with ghost cells.
+
+Assertion in AmrCore on blocking factor to make sure that there are n",0,0,1,136,245,6,unknown
+456676243,1199,https://github.com/AMReX-Codes/amrex/pull/1199,Optimization of regrid,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,regrid_opt,2020-07-25T22:35:54Z,2020-08-03T20:16:56Z,2020-08-03T20:16:50Z,2020-08-03T20:16:50Z,optimiz | optimization,"New BoxList::maxSize function that keeps Boxes after chopping in an order that is easy to merge them
+back into original Box.
+
+New BoxList::order_simplify function that assumes the BoxList is in the order that we only need to
+search the next Box in the list.
+
+Minor optimization of BoxList::intersect.
+
+Cache simplified BoxList inside BoxArray.",0,0,2,169,134,6,unknown
+462434291,1224,https://github.com/AMReX-Codes/amrex/pull/1224,Optimization of FPinfo and complementIn,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,complementin,2020-08-03T22:51:05Z,2020-08-04T16:21:03Z,2020-08-04T16:20:58Z,2020-08-04T16:20:58Z,optimiz | optimization,"## Summary
+
+Use simplified BoxArray in FPinfo and parallelize FPinfo.  Add parallel version of
+BoxList::parallelComplementIn and use it in AmrMesh::MakeNewGrids.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely to significantly affec",1,3,1,461,208,12,unknown
+462884341,1227,https://github.com/AMReX-Codes/amrex/pull/1227,Optimization of the construction of SFC,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,morton,2020-08-04T16:48:25Z,2020-08-04T23:13:46Z,2020-08-04T23:12:51Z,2020-08-04T23:12:50Z,optimiz | optimization,"## Summary
+
+The Morton numbers are explicitly computed and stored in SFCTokens.  This
+speeds up the sorting in making space filling curve significantly.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely to significantly affect the res",1,0,1,168,108,2,unknown
+463609057,1231,https://github.com/AMReX-Codes/amrex/pull/1231,Use rvalues for functions that take callables,closed,False,atmyers,AMReX-Codes/amrex,development,rvalue_callable,2020-08-05T19:53:54Z,2020-08-05T20:23:10Z,2020-08-05T20:23:10Z,2020-08-05T20:23:10Z,performance,"There is no downside to doing it this way, and it may have better performance for some compilers / situations, although tests on Summit did not see a noticeable change.
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely to significantly affect the result",0,0,1,10,8,6,unknown
+476750689,1322,https://github.com/AMReX-Codes/amrex/pull/1322,Initial implementation of timemory,closed,False,jrmadsen,AMReX-Codes/amrex,development,timemory,2020-09-01T01:34:55Z,2021-07-08T04:34:16Z,2021-07-08T04:34:15Z,,performance,"## Summary
+
+This PR adds support for timemory. [Timemory](https://github.com/NERSC/timemory) is a toolkit developed at NERSC for creating customized performance measurement and analysis frameworks and tools. This PR effectively builds in:
+
+- Several marker APIs for external profiling tools (TAU, Caliper, LIKWID, etc.)
+- Control over several external profilers (gperftools, CrayPAT, Allinea-MAP",1,0,4,958,190,12,dirty
+478267254,1332,https://github.com/AMReX-Codes/amrex/pull/1332,More on Gpu kernel fusing,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,fusing,2020-09-03T00:43:20Z,2020-09-21T15:33:16Z,2020-09-21T15:33:11Z,2020-09-21T15:33:11Z,optimiz | performance,"## Summary
+
+* Add Gpu::KernelInfo argument to ParallelFor to allow the user to indicate
+  whether the kernel is an candidate for fusing.
+
+* For MFIter, if the local size is less or equal to 3, the fuse region is
+  turned on and small kernels marked fusable will be fused.
+
+* Add launch macros for fusing.
+
+* Add fusing to a number of functions used by linear solvers.  Note that
+  there ar",2,10,3,1309,428,24,unknown
+480295729,1345,https://github.com/AMReX-Codes/amrex/pull/1345,No inline for assertion,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,noinline_assertion,2020-09-04T23:54:14Z,2020-09-05T00:39:18Z,2020-09-05T00:27:41Z,2020-09-05T00:27:41Z,performance,"## Summary
+
+It is recommended that assertion calls on device are not inlined because
+of performance issues.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely to significantly affect the results of downstream AMReX users
+- [ ] are des",0,0,1,85,75,4,unknown
+491880232,1399,https://github.com/AMReX-Codes/amrex/pull/1399,Update dpcpp flags,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,dpcpp/flags,2020-09-23T15:54:17Z,2020-11-03T20:51:37Z,2020-09-23T17:31:11Z,2020-09-23T17:31:11Z,optimiz | optimization,"## Summary
+
+* -fsycl-unnamed-lambda is enabled by default now.  So we do not need to
+   pass the flag anymore.
+
+* Early optimizations are enabled by default in beta09.  This makes a lot of
+  tests crash.  So we disable it with -fno-sycl-early-optimizations.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] cha",1,0,1,13,3,2,unknown
+146045063,144,https://github.com/AMReX-Codes/amrex/pull/144,Base: add support for querying Process Management Interface (PMI),closed,False,bcfriesen,AMReX-Codes/amrex,development,add_pmi_support,2017-10-11T19:50:08Z,2017-10-11T23:28:00Z,2017-10-11T20:59:56Z,2017-10-11T20:59:56Z,latency | optimiz | optimization,"PMI is available on Cray systems and provides information about the topology of
+the job on the network. One can use this information to apply optimizations at
+run time which exploit higher bandwidth, lower-latency connections between
+particular groups of processes on the network.
+
+PMI support is disabled by default, and can be activated by setting
+USE_PMI=TRUE in the makefile.",2,0,3,112,0,4,unknown
+501702507,1448,https://github.com/AMReX-Codes/amrex/pull/1448,HDF5 plotfile write bug fix and performance improvement,closed,False,houjun,AMReX-Codes/amrex,development,development,2020-10-12T17:10:39Z,2020-10-15T05:11:44Z,2020-10-13T19:14:51Z,2020-10-13T19:14:50Z,optimiz | optimization | performance,"## Summary
+- Fix a bug that causes incorrect HDF5 plotfile data write with Tutorials/Basic/HeatEquation_EX1_C example code (after changing it to use HDF5 write API)
+- Add additional HDF5 write optimizations
+
+## Additional background
+
+## Checklist
+
+The proposed changes:
+- [x ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test s",1,0,4,175,91,3,unknown
+146087312,145,https://github.com/AMReX-Codes/amrex/pull/145,PMI: change computation of unique groups/chassis/slots from unordered_set to vector,closed,False,bcfriesen,AMReX-Codes/amrex,development,pmi_fixes,2017-10-11T23:42:34Z,2017-10-11T23:45:39Z,2017-10-11T23:45:39Z,2017-10-11T23:45:39Z,performance,This has better performance for large arrays.,0,0,1,17,7,1,unknown
+510389617,1483,https://github.com/AMReX-Codes/amrex/pull/1483,Divergence Free Stencil and API,closed,False,kngott,AMReX-Codes/amrex,development,kngott/face_divfree,2020-10-27T00:41:23Z,2020-12-14T21:51:14Z,2020-12-14T21:51:14Z,2020-12-14T21:51:14Z,performance,"## Summary
+
+API for multi-dimensional, face-based, coarse-to-fine interpolation (InterpFromCoarse and FillPatchTwoLevels). Includes a variation of Vanella et. al. stencil (doi:10.1016/j.jcp.2010.05.003, section 3.2), but instead of interpolating from a far coarse cell to solve interior closure problem (highly biased result dependent on chosen coarse cell), this uses least squares with initial gu",6,10,63,1754,14,16,unknown
+148784117,152,https://github.com/AMReX-Codes/amrex/pull/152,"Create a dimension agnostic, multi-component filcc",closed,False,maximumcats,AMReX-Codes/amrex,development,filcc,2017-10-25T21:20:17Z,2017-10-26T23:18:46Z,2017-10-26T23:18:35Z,2017-10-26T23:18:35Z,performance,"This version of filcc is both dimension agnostic, and works over an arbitrary number of components. It gives the same results as the dimensionful versions of filcc. It will be necessary for performance reasons to use a version like this on the GPU.
+
+This also applies the new filcc to amrex_fab_filcc.",12,0,3,962,11,1,unknown
+538646241,1636,https://github.com/AMReX-Codes/amrex/pull/1636,Constant coefficient MacProjector,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,const_beta_mac,2020-12-13T01:19:47Z,2020-12-14T18:21:35Z,2020-12-14T18:19:52Z,2020-12-14T18:19:52Z,optimiz | optimization,"## Summary
+
+Optimization of constant coefficient MAC projection by using constant
+coefficient Poisson solver.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely to significantly affect the results of downstream AMReX users
+- [ ] are d",1,0,1,151,60,3,unknown
+151238775,165,https://github.com/AMReX-Codes/amrex/pull/165,EB updates,closed,False,bcfriesen,AMReX-Codes/amrex,development,EB_updates,2017-11-07T21:58:28Z,2017-11-18T04:45:00Z,2017-11-18T04:44:59Z,2017-11-18T04:44:59Z,optimiz,"These commits attempt to optimize some of the EB neighbor cell computations. Switching the Combustor code from calling `get_neighbor_cells()` to `get_neighbor_cells_int_single()` yielded a 22% speedup in overall time step execution time on KNL, using 64 MPI processes on 1 node, with a 256^3 grid decomposed into 64^3 boxes. This was due entirely to vectorization of the (i,j,k) loop in the `eb_diff_",3,0,3,42,39,2,unknown
+542879040,1663,https://github.com/AMReX-Codes/amrex/pull/1663,FaceLinear fused interpolater variation (with performance comparison!),closed,False,kngott,AMReX-Codes/amrex,development,interp_compare,2020-12-19T05:15:23Z,2020-12-21T22:36:17Z,2020-12-21T22:36:17Z,2020-12-21T22:36:17Z,performance,"## Summary
+Add a `interp_arr` version of `FaceLinear` to test generality of the new API (and performance comparison, as `FaceDivFree `stencil can't be used in regular API for comparison). Also includes a bit of `interp_arr` cleanup.
+
+## Additional background
+* Based on summit tests (1 rank/GPU), new ""fused"" `FillPatchTwoLevels` is always equal or better than the old ""reg"" (~15-30%) [final colu",0,0,1,137,35,2,unknown
+545448150,1690,https://github.com/AMReX-Codes/amrex/pull/1690,Optimization of MLCellLinOp::applyBC,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,applybc,2020-12-24T19:08:55Z,2020-12-26T20:20:06Z,2020-12-26T20:20:01Z,2020-12-26T20:20:01Z,optimiz | optimization,"## Summary
+
+Launch one kernel per box to work on all faces and all components.  If the
+number of boxes exceeds the kernel fusing threshold, the kernels from all
+boxes will be fused.
+
+## Checklist
+
+The proposed changes:
+- [ ] fix a bug or incorrect behavior in AMReX
+- [ ] add new capabilities to AMReX
+- [ ] changes answers in the test suite to more than roundoff level
+- [ ] are likely t",1,2,8,465,163,7,unknown
+547120833,1692,https://github.com/AMReX-Codes/amrex/pull/1692,Optimized function for filling BaseFab of GpuArray,closed,False,WeiqunZhang,AMReX-Codes/amrex,development,fill_aos,2020-12-30T23:36:38Z,2021-01-03T18:12:08Z,2021-01-03T18:12:04Z,2021-01-03T18:12:04Z,optimiz,"## Summary
+
+Add amrex::fill for BaseFab of GpuArray (a.k.a. AoS).  The GPU
+implementation uses shared memory.  Tests show it's more than 10x faster
+than a naive implementation for GpuArray<Real,27>.
+
+Also added are a few functions in DPC++ so that I do not have to look up the
+documentation every time I need to use things like threadIdx and blockIdx.
+
+## Checklist
+
+The proposed changes:",0,0,1,99,2,4,unknown
+199065933,279,https://github.com/AMReX-Codes/amrex/pull/279,Update makefile for NREL site to get higher vectorization from the Intel compiler,closed,False,jrood-nrel,AMReX-Codes/amrex,development,update_nrel_makefile,2018-07-03T19:45:40Z,2018-07-03T19:57:29Z,2018-07-03T19:57:29Z,2018-07-03T19:57:29Z,performance,"Our main Peregrine machine at NREL has three generations of nodes, and this targets Haswell and Ivybridge with ""fat binaries"" that will use the highest level of vectorization for each target, which was not happening by default for us. This allows for fairly large gains in performance for our PeleC application when running on our newest Haswell nodes.",0,0,1,12,0,1,unknown
+239987390,388,https://github.com/AMReX-Codes/amrex/pull/388,Bunch of changes to support MLMG performance analysis and tuning,closed,False,cychan-lbnl,AMReX-Codes/amrex,development,cy-perf,2018-12-19T21:59:05Z,2019-02-07T19:18:38Z,2019-01-09T00:54:02Z,2019-01-09T00:54:02Z,performance,,12,0,30,1157,89,22,unknown
+277119274,476,https://github.com/AMReX-Codes/amrex/pull/476,[WIP] Adding CUDA graph support to FillBoundary,closed,False,kngott,AMReX-Codes/amrex,development,kngott/cudaGraphs,2019-05-08T19:13:35Z,2019-06-04T16:36:28Z,2019-06-04T16:36:28Z,2019-06-04T16:36:28Z,optimiz | optimization,"First draft of CUDA graph support from CUDA 10 into FillBoundary.
+WIP Pull Request for exploration and testing.
+-------------------------------------------------
+Features:
+- Multiple CUDA graph tests are available in Tests/CudaGraphs/GraphBoundary.
+- Multiple changes to CUDA Device and other objects to make easier integration.
+- Gpu::inGraphRegion static variable added to allow selective gra",0,2,130,2564,64,36,unknown
+409148284,808,https://github.com/AMReX-Codes/amrex/pull/808,Async I/O,closed,False,kngott,AMReX-Codes/amrex,development,kngott/async-pr,2020-04-26T20:01:18Z,2020-05-01T22:42:49Z,2020-05-01T22:10:10Z,2020-05-01T22:10:10Z,performance,"Async I/O
+========
+Infrastructure for multiple simultaneous asynchronous outputs of MultiFabs and Plotfiles. Should be easily extendable to other outputs, app specific outputs, and under useful circumstances, inputs (e.g. time-varying BCs, stored in input files?) Includes tests, confirmed working on CPU and GPU using fcompare and diffmultifab, and example integration into GPU HeatEquation tutori",5,21,13,1730,79,19,unknown
+421656109,927,https://github.com/AMReX-Codes/amrex/pull/927,Atomics: Constify Wrapper,closed,False,ax3l,AMReX-Codes/amrex,development,topic-constRestrictAtomicWrappers,2020-05-22T00:44:44Z,2020-05-27T16:35:12Z,2020-05-27T14:09:06Z,2020-05-27T14:09:06Z,performance,"Just improves [const correctness](https://isocpp.org/wiki/faq/const-correctness) in wrapper functions for atomics.
+
+~~Add restrict hints as well as const correctness to wrappers for atomics.~~
+
+See if this addresses a performance issue we see in WarpX depositions for single precision.
+Result: with `cuda/10.1.243` on Summit, it did not.",6,21,2,34,34,1,unknown
+426360569,964,https://github.com/AMReX-Codes/amrex/pull/964,CMake CUDA: Cleanups & CCache,closed,False,ax3l,AMReX-Codes/amrex,development,cmake-cudaCleanup,2020-06-02T05:33:50Z,2020-06-08T22:55:36Z,2020-06-02T19:52:14Z,2020-06-02T19:52:14Z,performance,"- gencode: use no-space syntax; this confuses/breaks with CCache<4.0 (all available releases today) and is complicating deduplication operations on lists (see e.g. https://github.com/alpaka-group/alpaka/pull/991)
+- min. CXX standard in CUDA: technically the right thing to set this as well for the CMake CUDA C++ language
+
+Now AMReX + CMake 3.17 + CUDA works with [CCache 3.7.9](https://ccache.dev",0,4,2,7,2,2,unknown

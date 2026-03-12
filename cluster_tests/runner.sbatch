@@ -27,7 +27,7 @@ module load gcc
 module load openmpi
 
 
-cd $SCRATCH/AutoUP
+cd "$SCRATCH/AutoUP"
 source .venv/bin/activate
 
 if [ ! -f polybench-c-4.2.1-beta.tar.gz ]; then
@@ -49,8 +49,3 @@ python orchestrator.py --nodes 3 --tasks-per-node 1 --cpus 40 --dataset EXTRALAR
 
 echo ""
 echo "Job end: $(date)"
-
-curl -sS -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"message":"OptimizeHPC 3-Node Test Finished"}' \
-  "https://hooks.slack.com/triggers/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"

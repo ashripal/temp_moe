@@ -1,0 +1,83 @@
+{
+  "original_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n\nstatic uint64_t checksum_double(const double* a, size_t n) {\n    double s = 0.0;\n    for (size_t i = 0; i < n; i++) s += a[i];\n    return (uint64_t)(s * 1e3);\n}\n\nint main(int argc, char** argv) {\n    size_t n = 50 * 1000 * 1000;  // 50M doubles ~ 400MB total across arrays if 3 arrays => adjust if needed\n    int reps = 3;\n\n    if (argc > 1) n = (size_t)atoll(argv[1]);\n    if (argc > 2) reps = atoi(argv[2]);\n\n    double* x = (double*)aligned_alloc(64, n * sizeof(double));\n    double* y = (double*)aligned_alloc(64, n * sizeof(double));\n    double* z = (double*)aligned_alloc(64, n * sizeof(double));\n    if (!x || !y || !z) {\n        fprintf(stderr, \"Allocation failed. Try smaller n.\\n\");\n        return 2;\n    }\n\n    for (size_t i = 0; i < n; i++) {\n        x[i] = (double)(i % 100) * 0.001;\n        y[i] = (double)((i + 7) % 100) * 0.002;\n        z[i] = 0.0;\n    }\n\n    double a = 2.5;\n\n    for (int r = 0; r < reps; r++) {\n        // Memory-bound: z = a*x + y\n        // Compiler should vectorize at -O3; this is just a stable benchmark.\n        for (size_t i = 0; i < n; i++) {\n            z[i] = a * x[i] + y[i];\n        }\n    }\n\n    printf(\"CHECKSUM=%llu\\n\", (unsigned long long)checksum_double(z, n));\n\n    free(x); free(y); free(z);\n    return 0;\n}",
+  "profiling_summary": "Hotspots: SAXPY kernel is memory bandwidth bound, low arithmetic intensity, performance appears limited by cache/memory behavior.",
+  "telemetry_summary": "mpi_wait_pct=0.0, omp_barrier_pct=0.0, omp_imbalance_ratio=1.0, memory_bound_score=0.85",
+  "telemetry_struct": {
+    "mpi_wait_pct": 0.0,
+    "omp_barrier_pct": 0.0,
+    "omp_imbalance_ratio": 1.0,
+    "memory_bound_score": 0.85
+  },
+  "ranked_candidates": [
+    {
+      "pattern": "Compiler Optimization Hints/Directives",
+      "target": "SAXPY loop vectorization and memory access efficiency",
+      "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
+      "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+      "preconditions": [
+        "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
+        "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+      ],
+      "parameters_to_sweep": {
+        "variant": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "correctness_checks": [
+        "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
+        "Verify no NaNs/Infs introduced for expected input ranges"
+      ],
+      "performance_metrics": [
+        "kernel runtime (ns/element or seconds)",
+        "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
+        "vectorization report confirms SIMD for the loop"
+      ],
+      "risk_level": "low",
+      "rollback_criteria": [
+        "Vectorization not achieved or runtime regresses by >5% vs baseline",
+        "Numeric checks fail under selected compiler flags/pragmas"
+      ],
+      "proposed_by": "Kernel & System Efficiency Expert"
+    }
+  ],
+  "selected_candidate": {
+    "pattern": "Compiler Optimization Hints/Directives",
+    "target": "SAXPY loop vectorization and memory access efficiency",
+    "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
+    "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+    "preconditions": [
+      "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
+      "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+    ],
+    "parameters_to_sweep": {
+      "variant": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "correctness_checks": [
+      "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
+      "Verify no NaNs/Infs introduced for expected input ranges"
+    ],
+    "performance_metrics": [
+      "kernel runtime (ns/element or seconds)",
+      "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
+      "vectorization report confirms SIMD for the loop"
+    ],
+    "risk_level": "low",
+    "rollback_criteria": [
+      "Vectorization not achieved or runtime regresses by >5% vs baseline",
+      "Numeric checks fail under selected compiler flags/pragmas"
+    ],
+    "proposed_by": "Kernel & System Efficiency Expert"
+  },
+  "ast": null,
+  "flame_report": null,
+  "evaluator_feedback": null,
+  "evaluation_feedback": null
+}

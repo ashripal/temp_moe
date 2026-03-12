@@ -1,0 +1,136 @@
+{
+  "routing": {
+    "selected_experts": [
+      "Parallelism & Job Expert"
+    ],
+    "reason": "OpenMP sync/imbalance high (barrier=22.0, imbalance=1.8)."
+  },
+  "expert_outputs": [
+    {
+      "expert_name": "Parallelism & Job Expert",
+      "candidates": [
+        {
+          "pattern": "Concurrency Control / Rate Limiting",
+          "target": "Reduce OpenMP barrier time by improving load balance via scheduling controls",
+          "rationale": "Profiling shows high omp_barrier_pct and imbalance; controlling work distribution (guided/dynamic chunking) reduces tail effects and synchronization waiting without changing algorithm",
+          "action_sketch": "Set an explicit OpenMP schedule to mitigate periodic heavy iterations: try #pragma omp parallel for reduction(+:sum) schedule(guided,chunk) or schedule(dynamic,chunk); optionally pin threads and disable dynamic team resizing to stabilize behavior",
+          "preconditions": [
+            "OpenMP build/run supports changing schedule via pragma or OMP_SCHEDULE",
+            "Loop iterations are independent aside from reduction (true here)",
+            "Runtime allows thread pinning settings (optional)"
+          ],
+          "parameters_to_sweep": {
+            "schedule_kind": [
+              "guided",
+              "dynamic",
+              "static"
+            ],
+            "chunk": [
+              1,
+              4,
+              8,
+              16,
+              32,
+              64,
+              128
+            ],
+            "omp_num_threads": [
+              1,
+              2,
+              4,
+              8,
+              16,
+              32
+            ],
+            "omp_proc_bind": [
+              "false",
+              "true"
+            ],
+            "omp_places": [
+              "cores",
+              "threads"
+            ]
+          },
+          "correctness_checks": [
+            "Verify CHECKSUM matches baseline for fixed n and skew across all schedule/thread settings",
+            "Run with OMP_NUM_THREADS=1 and compare CHECKSUM to parallel runs"
+          ],
+          "performance_metrics": [
+            "wall_time",
+            "omp_barrier_pct",
+            "omp_imbalance_ratio",
+            "speedup_vs_baseline",
+            "cpu_utilization"
+          ],
+          "risk_level": "low",
+          "rollback_criteria": [
+            "If CHECKSUM changes for any tested configuration",
+            "If wall_time does not improve or omp_barrier_pct increases relative to baseline schedule(runtime)"
+          ]
+        }
+      ]
+    }
+  ],
+  "final_ranked_candidates": [
+    {
+      "pattern": "Concurrency Control / Rate Limiting",
+      "target": "Reduce OpenMP barrier time by improving load balance via scheduling controls",
+      "rationale": "Profiling shows high omp_barrier_pct and imbalance; controlling work distribution (guided/dynamic chunking) reduces tail effects and synchronization waiting without changing algorithm",
+      "action_sketch": "Set an explicit OpenMP schedule to mitigate periodic heavy iterations: try #pragma omp parallel for reduction(+:sum) schedule(guided,chunk) or schedule(dynamic,chunk); optionally pin threads and disable dynamic team resizing to stabilize behavior",
+      "preconditions": [
+        "OpenMP build/run supports changing schedule via pragma or OMP_SCHEDULE",
+        "Loop iterations are independent aside from reduction (true here)",
+        "Runtime allows thread pinning settings (optional)"
+      ],
+      "parameters_to_sweep": {
+        "schedule_kind": [
+          "guided",
+          "dynamic",
+          "static"
+        ],
+        "chunk": [
+          1,
+          4,
+          8,
+          16,
+          32,
+          64,
+          128
+        ],
+        "omp_num_threads": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ],
+        "omp_proc_bind": [
+          "false",
+          "true"
+        ],
+        "omp_places": [
+          "cores",
+          "threads"
+        ]
+      },
+      "correctness_checks": [
+        "Verify CHECKSUM matches baseline for fixed n and skew across all schedule/thread settings",
+        "Run with OMP_NUM_THREADS=1 and compare CHECKSUM to parallel runs"
+      ],
+      "performance_metrics": [
+        "wall_time",
+        "omp_barrier_pct",
+        "omp_imbalance_ratio",
+        "speedup_vs_baseline",
+        "cpu_utilization"
+      ],
+      "risk_level": "low",
+      "rollback_criteria": [
+        "If CHECKSUM changes for any tested configuration",
+        "If wall_time does not improve or omp_barrier_pct increases relative to baseline schedule(runtime)"
+      ],
+      "proposed_by": "Parallelism & Job Expert"
+    }
+  ]
+}

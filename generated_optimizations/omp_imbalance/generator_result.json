@@ -1,0 +1,19 @@
+{
+  "analysis": "Hotspot is OpenMP barrier time driven by load imbalance from periodic heavy iterations. Selected plan is to explicitly control OpenMP scheduling to better distribute heavy iterations and reduce tail effects, replacing schedule(runtime) with a guided schedule and small chunk size. This preserves independence of iterations and reduction semantics; only scheduling policy changes. Numerical sum order may vary across schedules as before; checksum stability expectation remains similar to prior runtime scheduling behavior.",
+  "selected_candidate_pattern": "Concurrency Control / Rate Limiting",
+  "selected_candidate_target": "OpenMP parallel for loop scheduling pragma",
+  "applied_changes_summary": "Changed OpenMP loop scheduling from schedule(runtime) to schedule(guided,4) to improve load balance and reduce barrier wait time while keeping reduction and loop body unchanged.",
+  "final_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <math.h>\n#include <time.h>\n\n#ifdef _OPENMP\n#include <omp.h>\n#endif\n\n// Simple deterministic pseudo-work\nstatic inline double work(int iters) {\n    double x = 1.0;\n    for (int i = 0; i < iters; i++) {\n        x = x * 1.0000001 + 0.0000003;\n        if (x > 2.0) x -= 1.0;\n    }\n    return x;\n}\n\nint main(int argc, char** argv) {\n    int n = 200000;      // iterations\n    int heavy = 400;     // heavy work iters\n    int light = 40;      // light work iters\n    int skew = 10;       // every skew-th iteration is heavy\n\n    if (argc > 1) n = atoi(argv[1]);\n    if (argc > 2) skew = atoi(argv[2]);\n\n    double sum = 0.0;\n\n    // Imbalanced loop: periodic heavy iterations\n    // Use guided scheduling with a small chunk to reduce load imbalance and barrier waiting.\n    #pragma omp parallel for reduction(+:sum) schedule(guided,4)\n    for (int i = 0; i < n; i++) {\n        int iters = (i % skew == 0) ? heavy : light;\n        sum += work(iters);\n    }\n\n    // Print checksum so tests can verify correctness across schedules\n    // (should be stable for fixed n,skew)\n    uint64_t cs = (uint64_t)(sum * 1e6);\n    printf(\"CHECKSUM=%llu\\n\", (unsigned long long)cs);\n\n    return 0;\n}",
+  "correctness_risks": [
+    "Floating-point reduction order differs across schedules/threads, which can slightly change CHECKSUM on some platforms (this risk already exists with schedule(runtime) depending on OMP_SCHEDULE).",
+    "Some OpenMP runtimes may perform differently with guided scheduling; if performance regresses, rollback to previous schedule setting."
+  ],
+  "expected_metrics": [
+    "omp_barrier_pct decrease",
+    "omp_imbalance_ratio decrease"
+  ],
+  "compile_ready": true,
+  "used_feedback": false,
+  "generation_succeeded": true,
+  "failure_reason": null
+}

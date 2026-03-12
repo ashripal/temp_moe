@@ -1,0 +1,82 @@
+{
+  "routing": {
+    "selected_experts": [
+      "Kernel & System Efficiency Expert"
+    ],
+    "reason": "Memory-bound signature high (memory_bound_score=0.85)."
+  },
+  "expert_outputs": [
+    {
+      "expert_name": "Kernel & System Efficiency Expert",
+      "candidates": [
+        {
+          "pattern": "Compiler Optimization Hints/Directives",
+          "target": "SAXPY loop vectorization and memory access efficiency",
+          "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
+          "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+          "preconditions": [
+            "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
+            "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+          ],
+          "parameters_to_sweep": {
+            "variant": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "correctness_checks": [
+            "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
+            "Verify no NaNs/Infs introduced for expected input ranges"
+          ],
+          "performance_metrics": [
+            "kernel runtime (ns/element or seconds)",
+            "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
+            "vectorization report confirms SIMD for the loop"
+          ],
+          "risk_level": "low",
+          "rollback_criteria": [
+            "Vectorization not achieved or runtime regresses by >5% vs baseline",
+            "Numeric checks fail under selected compiler flags/pragmas"
+          ]
+        }
+      ]
+    }
+  ],
+  "final_ranked_candidates": [
+    {
+      "pattern": "Compiler Optimization Hints/Directives",
+      "target": "SAXPY loop vectorization and memory access efficiency",
+      "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
+      "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+      "preconditions": [
+        "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
+        "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+      ],
+      "parameters_to_sweep": {
+        "variant": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "correctness_checks": [
+        "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
+        "Verify no NaNs/Infs introduced for expected input ranges"
+      ],
+      "performance_metrics": [
+        "kernel runtime (ns/element or seconds)",
+        "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
+        "vectorization report confirms SIMD for the loop"
+      ],
+      "risk_level": "low",
+      "rollback_criteria": [
+        "Vectorization not achieved or runtime regresses by >5% vs baseline",
+        "Numeric checks fail under selected compiler flags/pragmas"
+      ],
+      "proposed_by": "Kernel & System Efficiency Expert"
+    }
+  ]
+}

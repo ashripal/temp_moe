@@ -1,0 +1,109 @@
+{
+  "original_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <mpi.h>\n\nstatic uint64_t checksum_bytes(const unsigned char* buf, int n) {\n    uint64_t s = 0;\n    for (int i = 0; i < n; i++) s += buf[i];\n    return s;\n}\n\nint main(int argc, char** argv) {\n    int msg_size = 1 << 20; // 1MB default\n    int iters = 200;\n\n    if (argc > 1) msg_size = atoi(argv[1]);\n    if (argc > 2) iters = atoi(argv[2]);\n\n    MPI_Init(&argc, &argv);\n\n    int rank, size;\n    MPI_Comm_rank(MPI_COMM_WORLD, &rank);\n    MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n    if (size != 2) {\n        if (rank == 0) fprintf(stderr, \"Run with exactly 2 ranks.\\n\");\n        MPI_Finalize();\n        return 2;\n    }\n\n    unsigned char* buf = (unsigned char*)malloc((size_t)msg_size);\n    if (!buf) {\n        if (rank == 0) fprintf(stderr, \"malloc failed\\n\");\n        MPI_Finalize();\n        return 3;\n    }\n\n    for (int i = 0; i < msg_size; i++) buf[i] = (unsigned char)((i + rank) % 251);\n\n    // Synchronize before timing\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t0 = MPI_Wtime();\n\n    for (int i = 0; i < iters; i++) {\n        if (rank == 0) {\n            MPI_Send(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD);\n            MPI_Recv(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n        } else {\n            MPI_Recv(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n            MPI_Send(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD);\n        }\n    }\n\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t1 = MPI_Wtime();\n    double elapsed = t1 - t0;\n\n    uint64_t cs = checksum_bytes(buf, msg_size);\n\n    if (rank == 0) {\n        printf(\"TIME_SEC=%f\\n\", elapsed);\n        printf(\"CHECKSUM=%llu\\n\", (unsigned long long)cs);\n        fflush(stdout);\n    }\n\n    free(buf);\n    MPI_Finalize();\n    return 0;\n}",
+  "profiling_summary": "Hotspots: MPI_Waitall 40%, message exchange dominates runtime, communication latency is the primary bottleneck.",
+  "telemetry_summary": "mpi_wait_pct=40.0, omp_barrier_pct=0.0, omp_imbalance_ratio=1.0, memory_bound_score=0.1",
+  "telemetry_struct": {
+    "mpi_wait_pct": 40.0,
+    "omp_barrier_pct": 0.0,
+    "omp_imbalance_ratio": 1.0,
+    "memory_bound_score": 0.1
+  },
+  "ranked_candidates": [
+    {
+      "pattern": "Performance-Optimized Dependency Selection",
+      "target": "MPI runtime/library selection and configuration for ping-pong exchange",
+      "rationale": "Profiling indicates communication latency dominates (MPI_Waitall hotspot); using a more optimized MPI implementation/build and transport settings can reduce message latency and wait time without changing message matching semantics.",
+      "action_sketch": "Benchmark the same binary against newer/optimized MPI stacks (e.g., vendor-tuned MPI vs baseline) and enable low-latency transports via runtime parameters/MCA/MPICH CVARs; keep rank/tag/comm/order identical and only change MPI dependency/runtime configuration.",
+      "preconditions": [
+        "Ability to run the program with alternative MPI implementations or versions on the target system",
+        "Cluster fabric/transport (e.g., UCX/OFI) available and configurable via MPI runtime settings",
+        "Job environment allows per-run MPI runtime parameter changes"
+      ],
+      "parameters_to_sweep": {
+        "mpi_impl_variant": [
+          1,
+          2
+        ],
+        "transport_variant": [
+          1,
+          2
+        ],
+        "eager_threshold_variant": [
+          1,
+          2
+        ],
+        "progress_engine_variant": [
+          1,
+          2
+        ]
+      },
+      "correctness_checks": [
+        "Verify CHECKSUM matches baseline for same msg_size/iters across MPI variants",
+        "Confirm runs complete with exactly 2 ranks and no MPI errors/hangs",
+        "Validate message matching invariants (same tag=123, same peer ranks, same communicator) are unchanged"
+      ],
+      "performance_metrics": [
+        "TIME_SEC",
+        "iterations_per_second",
+        "effective_bandwidth_bytes_per_sec",
+        "mpi_wait_pct"
+      ],
+      "risk_level": "low",
+      "rollback_criteria": [
+        "TIME_SEC does not improve (or regresses by >5%) compared to baseline for representative msg_size values",
+        "Any correctness check fails (checksum mismatch, hang, or MPI error)"
+      ],
+      "proposed_by": "Communication & Resilience Expert"
+    }
+  ],
+  "selected_candidate": {
+    "pattern": "Performance-Optimized Dependency Selection",
+    "target": "MPI runtime/library selection and configuration for ping-pong exchange",
+    "rationale": "Profiling indicates communication latency dominates (MPI_Waitall hotspot); using a more optimized MPI implementation/build and transport settings can reduce message latency and wait time without changing message matching semantics.",
+    "action_sketch": "Benchmark the same binary against newer/optimized MPI stacks (e.g., vendor-tuned MPI vs baseline) and enable low-latency transports via runtime parameters/MCA/MPICH CVARs; keep rank/tag/comm/order identical and only change MPI dependency/runtime configuration.",
+    "preconditions": [
+      "Ability to run the program with alternative MPI implementations or versions on the target system",
+      "Cluster fabric/transport (e.g., UCX/OFI) available and configurable via MPI runtime settings",
+      "Job environment allows per-run MPI runtime parameter changes"
+    ],
+    "parameters_to_sweep": {
+      "mpi_impl_variant": [
+        1,
+        2
+      ],
+      "transport_variant": [
+        1,
+        2
+      ],
+      "eager_threshold_variant": [
+        1,
+        2
+      ],
+      "progress_engine_variant": [
+        1,
+        2
+      ]
+    },
+    "correctness_checks": [
+      "Verify CHECKSUM matches baseline for same msg_size/iters across MPI variants",
+      "Confirm runs complete with exactly 2 ranks and no MPI errors/hangs",
+      "Validate message matching invariants (same tag=123, same peer ranks, same communicator) are unchanged"
+    ],
+    "performance_metrics": [
+      "TIME_SEC",
+      "iterations_per_second",
+      "effective_bandwidth_bytes_per_sec",
+      "mpi_wait_pct"
+    ],
+    "risk_level": "low",
+    "rollback_criteria": [
+      "TIME_SEC does not improve (or regresses by >5%) compared to baseline for representative msg_size values",
+      "Any correctness check fails (checksum mismatch, hang, or MPI error)"
+    ],
+    "proposed_by": "Communication & Resilience Expert"
+  },
+  "ast": null,
+  "flame_report": null,
+  "evaluator_feedback": null,
+  "evaluation_feedback": null
+}

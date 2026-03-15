@@ -1,0 +1,707 @@
+{
+  "original_source": "/Users/ashripal/adv swe/temp_moe/benchmarks/omp_imbalance/main.c",
+  "optimized_source": "/Users/ashripal/adv swe/temp_moe/generated_optimizations/omp_imbalance/optimized_main.c",
+  "original_build": {
+    "compile_success": true,
+    "return_code": 0,
+    "build_time_seconds": 0.0925469160429202,
+    "warning_count": 0,
+    "error_count": 0,
+    "binary_size_bytes": 34240,
+    "stdout": "",
+    "stderr": "",
+    "compile_command": [
+      "/usr/bin/clang",
+      "/Users/ashripal/adv swe/temp_moe/benchmarks/omp_imbalance/main.c",
+      "-o",
+      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_xsj_26ac/original_bin",
+      "-isysroot",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-O3",
+      "-Xpreprocessor",
+      "-fopenmp",
+      "-I/opt/homebrew/opt/libomp/include",
+      "-L/opt/homebrew/opt/libomp/lib",
+      "-lomp"
+    ]
+  },
+  "optimized_build": {
+    "compile_success": true,
+    "return_code": 0,
+    "build_time_seconds": 0.06793066603131592,
+    "warning_count": 0,
+    "error_count": 0,
+    "binary_size_bytes": 34240,
+    "stdout": "",
+    "stderr": "",
+    "compile_command": [
+      "/usr/bin/clang",
+      "/Users/ashripal/adv swe/temp_moe/generated_optimizations/omp_imbalance/optimized_main.c",
+      "-o",
+      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_xsj_26ac/optimized_bin",
+      "-isysroot",
+      "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+      "-O3",
+      "-Xpreprocessor",
+      "-fopenmp",
+      "-I/opt/homebrew/opt/libomp/include",
+      "-L/opt/homebrew/opt/libomp/lib",
+      "-lomp"
+    ]
+  },
+  "original_run": {
+    "run_success": true,
+    "successful_runs": 30,
+    "total_runs": 33,
+    "timed_trials_count": 30,
+    "warmup_trials_count": 3,
+    "timeout_count": 0,
+    "crash_count": 0,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "wall_time_mean": 0.00898660136347947,
+    "wall_time_median": 0.008568374993046746,
+    "wall_time_std": 0.001011049828157927,
+    "wall_time_min": 0.008078499988187104,
+    "wall_time_max": 0.011539999977685511,
+    "wall_time_trimmed_mean": 0.008820187455664078,
+    "runtime_coefficient_of_variation": 0.11250636222351187,
+    "representative_stdout": "CHECKSUM=200006080069\n",
+    "representative_stderr": "",
+    "trials": [
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.2305139169911854,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.011786916002165526,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.010210209002252668,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009540208033286035,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009172416990622878,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008958833990618587,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008486707985866815,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.010064916976261884,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009120000002440065,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008098167018033564,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008114833035506308,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008078499988187104,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008117916993796825,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.0096602090052329,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009628915984649211,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008583459013607353,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008348083996679634,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008218208036851138,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00829249998787418,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00815041601890698,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008158791984897107,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008089166949503124,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008259582973551005,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008168958011083305,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.011198875028640032,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.01090883300639689,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.011539999977685511,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.010738624958321452,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009033999987877905,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008553290972486138,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009203499997965991,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00838204100728035,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008728082990273833,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      }
+    ]
+  },
+  "optimized_run": {
+    "run_success": true,
+    "successful_runs": 30,
+    "total_runs": 33,
+    "timed_trials_count": 30,
+    "warmup_trials_count": 3,
+    "timeout_count": 0,
+    "crash_count": 0,
+    "exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "wall_time_mean": 0.008239363937173038,
+    "wall_time_median": 0.008168500033207238,
+    "wall_time_std": 0.000273807018880454,
+    "wall_time_min": 0.00800316600361839,
+    "wall_time_max": 0.009280750004108995,
+    "wall_time_trimmed_mean": 0.0081749497136722,
+    "runtime_coefficient_of_variation": 0.03323157236023226,
+    "representative_stdout": "CHECKSUM=200006080069\n",
+    "representative_stderr": "",
+    "trials": [
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.2275800000061281,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009905667044222355,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009080749994609505,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008865166979376227,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008804208016954362,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008365500019863248,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008200000040233135,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008318833017256111,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.009280750004108995,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008200624957680702,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00811583298491314,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008254084037616849,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008009209006559104,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008132249990012497,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008122666971758008,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008045624999795109,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008084666973445565,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00817866699071601,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008019624976441264,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00800316600361839,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008161749981809407,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008162750047631562,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008162499987520278,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008185790968127549,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008265500015113503,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008174250018782914,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.00817924999864772,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008193750050850213,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008123750041704625,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008147625019773841,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008097500016447157,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008217666996642947,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      },
+      {
+        "success": true,
+        "return_code": 0,
+        "wall_time_seconds": 0.008107959001790732,
+        "stdout": "CHECKSUM=200006080069\n",
+        "stderr": "",
+        "timed_out": false
+      }
+    ]
+  },
+  "output_comparison": {
+    "exit_code_match": true,
+    "stdout_match": true,
+    "stderr_match": true,
+    "correctness_pass": true
+  },
+  "diff_metrics": {
+    "lines_original": 45,
+    "lines_optimized": 46,
+    "lines_added": 2,
+    "lines_deleted": 1,
+    "lines_changed": 2,
+    "diff_hunk_count": 1,
+    "percent_file_changed": 6.666666666666667
+  },
+  "speedup": 1.0906911543177704,
+  "percent_improvement": 8.315016946708248,
+  "median_speedup": 1.0489532910832962,
+  "median_percent_improvement": 4.666870441174754,
+  "trimmed_mean_speedup": 1.0789286496665231,
+  "trimmed_mean_percent_improvement": 7.315465178435907,
+  "likely_significant": false,
+  "significance_reason": "median_improvement=4.67%, trimmed_mean_improvement=7.32%, original_cv=0.113, optimized_cv=0.033"
+}

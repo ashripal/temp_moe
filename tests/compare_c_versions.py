@@ -123,6 +123,9 @@ class ComparisonReport:
     diff_metrics: DiffMetrics
     speedup: Optional[float]
     percent_improvement: Optional[float]
+    percent_change: Optional[float]
+    percent_slowdown: Optional[float]
+    is_regression: Optional[bool]
     median_speedup: Optional[float]
     median_percent_improvement: Optional[float]
     trimmed_mean_speedup: Optional[float]
@@ -451,6 +454,24 @@ def run_binary_repeated(
 #         stderr_match=stderr_match,
 #         correctness_pass=(stdout_match and stderr_match and exit_code_match),
 #     )
+def normalize_stdout(text: str) -> str:
+    """
+    Remove non-deterministic lines (e.g., timing output) so correctness
+    comparison only considers stable semantic outputs like CHECKSUM.
+    """
+    filtered = []
+    for line in text.splitlines():
+        line = line.strip()
+
+        # Ignore timing lines
+        if line.startswith("TIME_SEC="):
+            continue
+
+        filtered.append(line)
+
+    return "\n".join(filtered)
+
+
 def compare_outputs(
     original_run: RunMetrics,
     optimized_run: RunMetrics,
@@ -458,12 +479,15 @@ def compare_outputs(
     original_exit = original_run.exit_codes[0] if original_run.exit_codes else None
     optimized_exit = optimized_run.exit_codes[0] if optimized_run.exit_codes else None
 
-    stdout_match = (
-        original_run.representative_stdout == optimized_run.representative_stdout
-    )
+    original_stdout = normalize_stdout(original_run.representative_stdout)
+    optimized_stdout = normalize_stdout(optimized_run.representative_stdout)
+
+    stdout_match = (original_stdout == optimized_stdout)
+
     stderr_match = (
         original_run.representative_stderr == optimized_run.representative_stderr
     )
+
     exit_code_match = (original_exit == optimized_exit)
 
     correctness_pass = (
@@ -480,6 +504,42 @@ def compare_outputs(
         stderr_match=stderr_match,
         correctness_pass=correctness_pass,
     )
+
+def compute_performance_change(
+    original_run: Optional[RunMetrics],
+    optimized_run: Optional[RunMetrics],
+) -> Dict[str, Optional[float | bool]]:
+    if (
+        original_run is None
+        or optimized_run is None
+        or original_run.wall_time_mean is None
+        or optimized_run.wall_time_mean is None
+        or original_run.wall_time_mean <= 0
+        or optimized_run.wall_time_mean <= 0
+    ):
+        return {
+            "speedup": None,
+            "percent_improvement": None,
+            "percent_change": None,
+            "percent_slowdown": None,
+            "is_regression": None,
+        }
+
+    orig = original_run.wall_time_mean
+    opt = optimized_run.wall_time_mean
+
+    speedup = orig / opt
+    percent_improvement = ((orig - opt) / orig) * 100.0
+    percent_change = ((opt - orig) / orig) * 100.0
+    is_regression = opt > orig
+
+    return {
+        "speedup": speedup,
+        "percent_improvement": percent_improvement,
+        "percent_change": percent_change,
+        "percent_slowdown": percent_change if is_regression else 0.0,
+        "is_regression": is_regression,
+    }
 
 
 def compute_speedup(
@@ -611,7 +671,8 @@ def compare_versions(
         if original_run is not None and optimized_run is not None:
             output_comparison = compare_outputs(original_run, optimized_run)
 
-        speedup, percent_improvement = compute_speedup(original_run, optimized_run)
+        # speedup, percent_improvement = compute_speedup(original_run, optimized_run)
+        perf = compute_performance_change(original_run, optimized_run)
 
         timing_summary = {
             "mean_speedup": None,
@@ -656,8 +717,11 @@ def compare_versions(
             optimized_run=optimized_run,
             output_comparison=output_comparison,
             diff_metrics=diff_metrics,
-            speedup=speedup,
-            percent_improvement=percent_improvement,
+            speedup=perf["speedup"],
+            percent_improvement=perf["percent_improvement"],
+            percent_change=perf["percent_change"],
+            percent_slowdown=perf["percent_slowdown"],
+            is_regression=perf["is_regression"],
             median_speedup=timing_summary["median_speedup"],
             median_percent_improvement=timing_summary["median_percent_improvement"],
             trimmed_mean_speedup=timing_summary["trimmed_mean_speedup"],

@@ -4,7 +4,7 @@
   "original_build": {
     "compile_success": true,
     "return_code": 0,
-    "build_time_seconds": 0.0925469160429202,
+    "build_time_seconds": 0.0907991660060361,
     "warning_count": 0,
     "error_count": 0,
     "binary_size_bytes": 34240,
@@ -14,7 +14,7 @@
       "/usr/bin/clang",
       "/Users/ashripal/adv swe/temp_moe/benchmarks/omp_imbalance/main.c",
       "-o",
-      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_xsj_26ac/original_bin",
+      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_u8mxb60j/original_bin",
       "-isysroot",
       "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
       "-O3",
@@ -28,7 +28,7 @@
   "optimized_build": {
     "compile_success": true,
     "return_code": 0,
-    "build_time_seconds": 0.06793066603131592,
+    "build_time_seconds": 0.07339724997291341,
     "warning_count": 0,
     "error_count": 0,
     "binary_size_bytes": 34240,
@@ -38,7 +38,7 @@
       "/usr/bin/clang",
       "/Users/ashripal/adv swe/temp_moe/generated_optimizations/omp_imbalance/optimized_main.c",
       "-o",
-      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_xsj_26ac/optimized_bin",
+      "/var/folders/6j/zrljjyms52nc7w1gvz008z5r0000gn/T/compare_c_versions_u8mxb60j/optimized_bin",
       "-isysroot",
       "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
       "-O3",
@@ -89,20 +89,20 @@
       0,
       0
     ],
-    "wall_time_mean": 0.00898660136347947,
-    "wall_time_median": 0.008568374993046746,
-    "wall_time_std": 0.001011049828157927,
-    "wall_time_min": 0.008078499988187104,
-    "wall_time_max": 0.011539999977685511,
-    "wall_time_trimmed_mean": 0.008820187455664078,
-    "runtime_coefficient_of_variation": 0.11250636222351187,
+    "wall_time_mean": 0.008490429162823906,
+    "wall_time_median": 0.008307562005938962,
+    "wall_time_std": 0.000444857765120217,
+    "wall_time_min": 0.008060624997597188,
+    "wall_time_max": 0.010110208997502923,
+    "wall_time_trimmed_mean": 0.008401888830121607,
+    "runtime_coefficient_of_variation": 0.05239520365685,
     "representative_stdout": "CHECKSUM=200006080069\n",
     "representative_stderr": "",
     "trials": [
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.2305139169911854,
+        "wall_time_seconds": 0.33553179196314886,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -110,7 +110,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.011786916002165526,
+        "wall_time_seconds": 0.011414375039748847,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -118,7 +118,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.010210209002252668,
+        "wall_time_seconds": 0.010663624969311059,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -126,7 +126,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009540208033286035,
+        "wall_time_seconds": 0.009240665996912867,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -134,7 +134,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009172416990622878,
+        "wall_time_seconds": 0.009440459019970149,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -142,7 +142,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008958833990618587,
+        "wall_time_seconds": 0.008711292000953108,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -150,7 +150,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008486707985866815,
+        "wall_time_seconds": 0.008306041010655463,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -158,7 +158,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.010064916976261884,
+        "wall_time_seconds": 0.008218374976422638,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -166,7 +166,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009120000002440065,
+        "wall_time_seconds": 0.008388791000470519,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -174,7 +174,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008098167018033564,
+        "wall_time_seconds": 0.008458832977339625,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -182,7 +182,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008114833035506308,
+        "wall_time_seconds": 0.00822675001109019,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -190,7 +190,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008078499988187104,
+        "wall_time_seconds": 0.008161166973877698,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -198,7 +198,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008117916993796825,
+        "wall_time_seconds": 0.00829791696742177,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -206,7 +206,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.0096602090052329,
+        "wall_time_seconds": 0.008125124964863062,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -214,7 +214,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009628915984649211,
+        "wall_time_seconds": 0.008672958996612579,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -222,7 +222,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008583459013607353,
+        "wall_time_seconds": 0.008684500004164875,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -230,7 +230,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008348083996679634,
+        "wall_time_seconds": 0.008127708977553993,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -238,7 +238,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008218208036851138,
+        "wall_time_seconds": 0.00809045898495242,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -246,7 +246,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00829249998787418,
+        "wall_time_seconds": 0.008827750047203153,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -254,7 +254,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00815041601890698,
+        "wall_time_seconds": 0.00864316598745063,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -262,7 +262,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008158791984897107,
+        "wall_time_seconds": 0.008060624997597188,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -270,7 +270,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008089166949503124,
+        "wall_time_seconds": 0.008290875004604459,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -278,7 +278,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008259582973551005,
+        "wall_time_seconds": 0.008258250018116087,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -286,7 +286,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008168958011083305,
+        "wall_time_seconds": 0.008698833989910781,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -294,7 +294,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.011198875028640032,
+        "wall_time_seconds": 0.008309083001222461,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -302,7 +302,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.01090883300639689,
+        "wall_time_seconds": 0.008193125016987324,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -310,7 +310,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.011539999977685511,
+        "wall_time_seconds": 0.008213541004806757,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -318,7 +318,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.010738624958321452,
+        "wall_time_seconds": 0.008272957988083363,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -326,7 +326,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009033999987877905,
+        "wall_time_seconds": 0.008410457987338305,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -334,7 +334,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008553290972486138,
+        "wall_time_seconds": 0.008448874985333532,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -342,7 +342,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009203499997965991,
+        "wall_time_seconds": 0.008260041999164969,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -350,7 +350,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00838204100728035,
+        "wall_time_seconds": 0.008564040996134281,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -358,7 +358,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008728082990273833,
+        "wall_time_seconds": 0.010110208997502923,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -405,20 +405,20 @@
       0,
       0
     ],
-    "wall_time_mean": 0.008239363937173038,
-    "wall_time_median": 0.008168500033207238,
-    "wall_time_std": 0.000273807018880454,
-    "wall_time_min": 0.00800316600361839,
-    "wall_time_max": 0.009280750004108995,
-    "wall_time_trimmed_mean": 0.0081749497136722,
-    "runtime_coefficient_of_variation": 0.03323157236023226,
+    "wall_time_mean": 0.008378901340377828,
+    "wall_time_median": 0.008235166984377429,
+    "wall_time_std": 0.00036908524020409816,
+    "wall_time_min": 0.008075417019426823,
+    "wall_time_max": 0.00958058302057907,
+    "wall_time_trimmed_mean": 0.008310138796029301,
+    "runtime_coefficient_of_variation": 0.04404935983975378,
     "representative_stdout": "CHECKSUM=200006080069\n",
     "representative_stderr": "",
     "trials": [
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.2275800000061281,
+        "wall_time_seconds": 0.21968000003835186,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -426,7 +426,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009905667044222355,
+        "wall_time_seconds": 0.010979750019032508,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -434,7 +434,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009080749994609505,
+        "wall_time_seconds": 0.010092458978760988,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -442,7 +442,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008865166979376227,
+        "wall_time_seconds": 0.00958058302057907,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -450,7 +450,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008804208016954362,
+        "wall_time_seconds": 0.008858665998559445,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -458,7 +458,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008365500019863248,
+        "wall_time_seconds": 0.008220666961278766,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -466,7 +466,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008200000040233135,
+        "wall_time_seconds": 0.008098167018033564,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -474,7 +474,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008318833017256111,
+        "wall_time_seconds": 0.008166958985384554,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -482,7 +482,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.009280750004108995,
+        "wall_time_seconds": 0.008134791976772249,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -490,7 +490,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008200624957680702,
+        "wall_time_seconds": 0.008144541003275663,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -498,7 +498,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00811583298491314,
+        "wall_time_seconds": 0.008126750006340444,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -506,7 +506,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008254084037616849,
+        "wall_time_seconds": 0.008249667007476091,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -514,7 +514,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008009209006559104,
+        "wall_time_seconds": 0.008131166046950966,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -522,7 +522,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008132249990012497,
+        "wall_time_seconds": 0.008123083040118217,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -530,7 +530,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008122666971758008,
+        "wall_time_seconds": 0.008123875013552606,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -538,7 +538,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008045624999795109,
+        "wall_time_seconds": 0.008148124965373427,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -546,7 +546,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008084666973445565,
+        "wall_time_seconds": 0.008345708018168807,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -554,7 +554,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00817866699071601,
+        "wall_time_seconds": 0.008784333011135459,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -562,7 +562,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008019624976441264,
+        "wall_time_seconds": 0.009141334041487426,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -570,7 +570,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00800316600361839,
+        "wall_time_seconds": 0.008948708011303097,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -578,7 +578,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008161749981809407,
+        "wall_time_seconds": 0.008602792047895491,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -586,7 +586,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008162750047631562,
+        "wall_time_seconds": 0.008792833017650992,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -594,7 +594,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008162499987520278,
+        "wall_time_seconds": 0.008319916960317641,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -602,7 +602,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008185790968127549,
+        "wall_time_seconds": 0.008293707971461117,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -610,7 +610,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008265500015113503,
+        "wall_time_seconds": 0.008398792007938027,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -618,7 +618,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008174250018782914,
+        "wall_time_seconds": 0.008079499995801598,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -626,7 +626,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.00817924999864772,
+        "wall_time_seconds": 0.008491832995787263,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -634,7 +634,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008193750050850213,
+        "wall_time_seconds": 0.008075417019426823,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -642,7 +642,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008123750041704625,
+        "wall_time_seconds": 0.00825549999717623,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -650,7 +650,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008147625019773841,
+        "wall_time_seconds": 0.008106417022645473,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -658,7 +658,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008097500016447157,
+        "wall_time_seconds": 0.008175666036549956,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -666,7 +666,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008217666996642947,
+        "wall_time_seconds": 0.008294957980979234,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -674,7 +674,7 @@
       {
         "success": true,
         "return_code": 0,
-        "wall_time_seconds": 0.008107959001790732,
+        "wall_time_seconds": 0.008152583031915128,
         "stdout": "CHECKSUM=200006080069\n",
         "stderr": "",
         "timed_out": false
@@ -696,12 +696,15 @@
     "diff_hunk_count": 1,
     "percent_file_changed": 6.666666666666667
   },
-  "speedup": 1.0906911543177704,
-  "percent_improvement": 8.315016946708248,
-  "median_speedup": 1.0489532910832962,
-  "median_percent_improvement": 4.666870441174754,
-  "trimmed_mean_speedup": 1.0789286496665231,
-  "trimmed_mean_percent_improvement": 7.315465178435907,
+  "speedup": 1.0133105544409058,
+  "percent_improvement": 1.313571084656272,
+  "percent_change": -1.313571084656272,
+  "percent_slowdown": 0.0,
+  "is_regression": false,
+  "median_speedup": 1.0087909597581775,
+  "median_percent_improvement": 0.8714352238331656,
+  "trimmed_mean_speedup": 1.0110407342577894,
+  "trimmed_mean_percent_improvement": 1.0920167589384449,
   "likely_significant": false,
-  "significance_reason": "median_improvement=4.67%, trimmed_mean_improvement=7.32%, original_cv=0.113, optimized_cv=0.033"
+  "significance_reason": "median_improvement=0.87%, trimmed_mean_improvement=1.09%, original_cv=0.052, optimized_cv=0.044"
 }

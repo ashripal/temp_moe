@@ -30,8 +30,7 @@ int main(int argc, char** argv) {
     double sum = 0.0;
 
     // Imbalanced loop: periodic heavy iterations
-    // Use guided scheduling with a small chunk to reduce load imbalance and barrier waiting.
-    #pragma omp parallel for reduction(+:sum) schedule(guided,4)
+    #pragma omp parallel for reduction(+:sum) schedule(guided, 16)
     for (int i = 0; i < n; i++) {
         int iters = (i % skew == 0) ? heavy : light;
         sum += work(iters);

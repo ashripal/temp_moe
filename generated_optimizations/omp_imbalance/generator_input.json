@@ -11,122 +11,72 @@
   "ranked_candidates": [
     {
       "pattern": "Concurrency Control / Rate Limiting",
-      "target": "Reduce OpenMP barrier time by improving load balance via scheduling controls",
-      "rationale": "Profiling shows high omp_barrier_pct and imbalance; controlling work distribution (guided/dynamic chunking) reduces tail effects and synchronization waiting without changing algorithm",
-      "action_sketch": "Set an explicit OpenMP schedule to mitigate periodic heavy iterations: try #pragma omp parallel for reduction(+:sum) schedule(guided,chunk) or schedule(dynamic,chunk); optionally pin threads and disable dynamic team resizing to stabilize behavior",
+      "target": "OpenMP load imbalance and barrier wait in imbalanced parallel for loop",
+      "rationale": "Periodic heavy iterations cause some threads to finish later, increasing barrier wait time; using a more dynamic schedule reduces idle time without changing algorithm or data dependencies.",
+      "action_sketch": "Replace schedule(runtime) with an explicit dynamic or guided schedule (and optionally nowait if no subsequent dependence) to improve load balance: e.g., '#pragma omp parallel for reduction(+:sum) schedule(guided,chunk)' or 'schedule(dynamic,chunk)'. Optionally set OMP_SCHEDULE at runtime for quick rollback/experimentation.",
       "preconditions": [
-        "OpenMP build/run supports changing schedule via pragma or OMP_SCHEDULE",
-        "Loop iterations are independent aside from reduction (true here)",
-        "Runtime allows thread pinning settings (optional)"
+        "OpenMP enabled; loop iterations are independent aside from the reduction on sum"
       ],
       "parameters_to_sweep": {
-        "schedule_kind": [
-          "guided",
-          "dynamic",
-          "static"
-        ],
-        "chunk": [
-          1,
-          4,
-          8,
-          16,
-          32,
-          64,
-          128
-        ],
-        "omp_num_threads": [
+        "variant": [
           1,
           2,
           4,
           8,
           16,
-          32
-        ],
-        "omp_proc_bind": [
-          "false",
-          "true"
-        ],
-        "omp_places": [
-          "cores",
-          "threads"
+          32,
+          64
         ]
       },
       "correctness_checks": [
-        "Verify CHECKSUM matches baseline for fixed n and skew across all schedule/thread settings",
-        "Run with OMP_NUM_THREADS=1 and compare CHECKSUM to parallel runs"
+        "Compare CHECKSUM for fixed n,skew across schedules and thread counts",
+        "Verify no data races (sum is reduction, work() has no shared state)"
       ],
       "performance_metrics": [
-        "wall_time",
+        "runtime",
         "omp_barrier_pct",
-        "omp_imbalance_ratio",
-        "speedup_vs_baseline",
-        "cpu_utilization"
+        "omp_imbalance_ratio"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "If CHECKSUM changes for any tested configuration",
-        "If wall_time does not improve or omp_barrier_pct increases relative to baseline schedule(runtime)"
+        "Runtime regresses >5% at target thread count",
+        "CHECKSUM changes for same n,skew"
       ],
       "proposed_by": "Parallelism & Job Expert"
     }
   ],
   "selected_candidate": {
     "pattern": "Concurrency Control / Rate Limiting",
-    "target": "Reduce OpenMP barrier time by improving load balance via scheduling controls",
-    "rationale": "Profiling shows high omp_barrier_pct and imbalance; controlling work distribution (guided/dynamic chunking) reduces tail effects and synchronization waiting without changing algorithm",
-    "action_sketch": "Set an explicit OpenMP schedule to mitigate periodic heavy iterations: try #pragma omp parallel for reduction(+:sum) schedule(guided,chunk) or schedule(dynamic,chunk); optionally pin threads and disable dynamic team resizing to stabilize behavior",
+    "target": "OpenMP load imbalance and barrier wait in imbalanced parallel for loop",
+    "rationale": "Periodic heavy iterations cause some threads to finish later, increasing barrier wait time; using a more dynamic schedule reduces idle time without changing algorithm or data dependencies.",
+    "action_sketch": "Replace schedule(runtime) with an explicit dynamic or guided schedule (and optionally nowait if no subsequent dependence) to improve load balance: e.g., '#pragma omp parallel for reduction(+:sum) schedule(guided,chunk)' or 'schedule(dynamic,chunk)'. Optionally set OMP_SCHEDULE at runtime for quick rollback/experimentation.",
     "preconditions": [
-      "OpenMP build/run supports changing schedule via pragma or OMP_SCHEDULE",
-      "Loop iterations are independent aside from reduction (true here)",
-      "Runtime allows thread pinning settings (optional)"
+      "OpenMP enabled; loop iterations are independent aside from the reduction on sum"
     ],
     "parameters_to_sweep": {
-      "schedule_kind": [
-        "guided",
-        "dynamic",
-        "static"
-      ],
-      "chunk": [
-        1,
-        4,
-        8,
-        16,
-        32,
-        64,
-        128
-      ],
-      "omp_num_threads": [
+      "variant": [
         1,
         2,
         4,
         8,
         16,
-        32
-      ],
-      "omp_proc_bind": [
-        "false",
-        "true"
-      ],
-      "omp_places": [
-        "cores",
-        "threads"
+        32,
+        64
       ]
     },
     "correctness_checks": [
-      "Verify CHECKSUM matches baseline for fixed n and skew across all schedule/thread settings",
-      "Run with OMP_NUM_THREADS=1 and compare CHECKSUM to parallel runs"
+      "Compare CHECKSUM for fixed n,skew across schedules and thread counts",
+      "Verify no data races (sum is reduction, work() has no shared state)"
     ],
     "performance_metrics": [
-      "wall_time",
+      "runtime",
       "omp_barrier_pct",
-      "omp_imbalance_ratio",
-      "speedup_vs_baseline",
-      "cpu_utilization"
+      "omp_imbalance_ratio"
     ],
     "risk_level": "low",
     "rollback_criteria": [
-      "If CHECKSUM changes for any tested configuration",
-      "If wall_time does not improve or omp_barrier_pct increases relative to baseline schedule(runtime)"
+      "Runtime regresses >5% at target thread count",
+      "CHECKSUM changes for same n,skew"
     ],
     "proposed_by": "Parallelism & Job Expert"
   },

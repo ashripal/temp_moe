@@ -11,12 +11,12 @@
       "candidates": [
         {
           "pattern": "Compiler Optimization Hints/Directives",
-          "target": "SAXPY loop vectorization and memory access efficiency",
-          "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
-          "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+          "target": "SAXPY loop vectorization and memory throughput",
+          "rationale": "Kernel is memory-bandwidth bound; ensuring aligned, non-aliasing pointers and enabling aggressive vectorization/unrolling can reduce loop overhead and improve sustained bandwidth while keeping the algorithm unchanged.",
+          "action_sketch": "Add restrict qualifiers to x/y/z pointers and use compiler hints for alignment and vectorization on the SAXPY loop (e.g., assume_aligned/ivdep/simd pragmas); build with -O3 -march=native and optionally -ffast-math or -fno-math-errno depending on tolerance policy.",
           "preconditions": [
-            "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
-            "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+            "Target compiler supports alignment and SIMD/vectorization directives (e.g., GCC/Clang/ICC) and build system can pass CPU-specific flags",
+            "x, y, z are 64-byte aligned and do not alias each other (true given separate aligned_alloc calls)"
           ],
           "parameters_to_sweep": {
             "variant": [
@@ -27,18 +27,18 @@
             ]
           },
           "correctness_checks": [
-            "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
-            "Verify no NaNs/Infs introduced for expected input ranges"
+            "Verify checksum remains within a defined numeric tolerance if enabling FP-reordering flags (e.g., abs(delta_checksum) <= 1 or relative error <= 1e-12 on s before scaling)",
+            "Run with multiple n and reps values to ensure no out-of-bounds or alignment-related crashes"
           ],
           "performance_metrics": [
-            "kernel runtime (ns/element or seconds)",
-            "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
-            "vectorization report confirms SIMD for the loop"
+            "runtime",
+            "effective_memory_bandwidth_GBps",
+            "cycles_per_element",
+            "vectorization_report_status"
           ],
           "risk_level": "low",
           "rollback_criteria": [
-            "Vectorization not achieved or runtime regresses by >5% vs baseline",
-            "Numeric checks fail under selected compiler flags/pragmas"
+            "If checksum deviates beyond tolerance or performance regresses by >5% compared to baseline -O3, revert directives/flags to baseline"
           ]
         }
       ]
@@ -47,12 +47,12 @@
   "final_ranked_candidates": [
     {
       "pattern": "Compiler Optimization Hints/Directives",
-      "target": "SAXPY loop vectorization and memory access efficiency",
-      "rationale": "Kernel is memory-bandwidth bound; ensure consistent autovectorization and generate optimal load/store streams by communicating alignment and aliasing assumptions to the compiler, and optionally enabling FMA/unrolling to reduce loop overhead.",
-      "action_sketch": "Add restrict-qualified pointers in the hot loop scope and assert 64B alignment via compiler builtins; optionally add ivdep/simd pragmas to force vectorization. Build with -O3 -march=native (or tuned -mcpu) and compare with/without -ffast-math/-fno-math-errno depending on tolerance policy.",
+      "target": "SAXPY loop vectorization and memory throughput",
+      "rationale": "Kernel is memory-bandwidth bound; ensuring aligned, non-aliasing pointers and enabling aggressive vectorization/unrolling can reduce loop overhead and improve sustained bandwidth while keeping the algorithm unchanged.",
+      "action_sketch": "Add restrict qualifiers to x/y/z pointers and use compiler hints for alignment and vectorization on the SAXPY loop (e.g., assume_aligned/ivdep/simd pragmas); build with -O3 -march=native and optionally -ffast-math or -fno-math-errno depending on tolerance policy.",
       "preconditions": [
-        "Compiler supports alignment/assume intrinsics or pragmas (e.g., GCC/Clang)",
-        "Pointers x,y,z do not alias in practice and remain 64B-aligned as allocated"
+        "Target compiler supports alignment and SIMD/vectorization directives (e.g., GCC/Clang/ICC) and build system can pass CPU-specific flags",
+        "x, y, z are 64-byte aligned and do not alias each other (true given separate aligned_alloc calls)"
       ],
       "parameters_to_sweep": {
         "variant": [
@@ -63,18 +63,18 @@
         ]
       },
       "correctness_checks": [
-        "Compare checksum and elementwise max-abs/max-rel error of z vs baseline within tolerance (e.g., 1e-12 rel) when enabling any fast-math-related flags",
-        "Verify no NaNs/Infs introduced for expected input ranges"
+        "Verify checksum remains within a defined numeric tolerance if enabling FP-reordering flags (e.g., abs(delta_checksum) <= 1 or relative error <= 1e-12 on s before scaling)",
+        "Run with multiple n and reps values to ensure no out-of-bounds or alignment-related crashes"
       ],
       "performance_metrics": [
-        "kernel runtime (ns/element or seconds)",
-        "effective memory bandwidth (GB/s) = (3*n*sizeof(double)*reps)/time",
-        "vectorization report confirms SIMD for the loop"
+        "runtime",
+        "effective_memory_bandwidth_GBps",
+        "cycles_per_element",
+        "vectorization_report_status"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "Vectorization not achieved or runtime regresses by >5% vs baseline",
-        "Numeric checks fail under selected compiler flags/pragmas"
+        "If checksum deviates beyond tolerance or performance regresses by >5% compared to baseline -O3, revert directives/flags to baseline"
       ],
       "proposed_by": "Kernel & System Efficiency Expert"
     }

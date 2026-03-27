@@ -11,94 +11,86 @@
   "ranked_candidates": [
     {
       "pattern": "Performance-Optimized Dependency Selection",
-      "target": "MPI runtime/library selection and configuration for ping-pong exchange",
-      "rationale": "Profiling indicates communication latency dominates (MPI_Waitall hotspot); using a more optimized MPI implementation/build and transport settings can reduce message latency and wait time without changing message matching semantics.",
-      "action_sketch": "Benchmark the same binary against newer/optimized MPI stacks (e.g., vendor-tuned MPI vs baseline) and enable low-latency transports via runtime parameters/MCA/MPICH CVARs; keep rank/tag/comm/order identical and only change MPI dependency/runtime configuration.",
+      "target": "MPI runtime/library selection and version for 2-rank ping-pong",
+      "rationale": "Profiling shows communication wait dominates (MPI_Waitall/latency bottleneck); switching to a newer or better-tuned MPI stack (and enabling its transport features) can reduce latency without changing message matching semantics.",
+      "action_sketch": "Benchmark the same binary across multiple MPI implementations/versions available on the system (e.g., newer Open MPI vs newer MPICH/vendor MPI) and select the one with lowest ping-pong time; ensure consistent transport configuration (e.g., UCX/OFI provider) and rerun with identical rank/tag/comm/order.",
       "preconditions": [
-        "Ability to run the program with alternative MPI implementations or versions on the target system",
-        "Cluster fabric/transport (e.g., UCX/OFI) available and configurable via MPI runtime settings",
-        "Job environment allows per-run MPI runtime parameter changes"
+        "Access to multiple MPI implementations/versions or ability to load different MPI modules/containers on the target cluster",
+        "Rebuild the application with each MPI (ABI compatibility not assumed) using the same compiler and optimization level",
+        "Network fabric and job launcher support the chosen MPI transport/provider"
       ],
       "parameters_to_sweep": {
         "mpi_impl_variant": [
           1,
           2
         ],
+        "mpi_version_variant": [
+          1,
+          2
+        ],
         "transport_variant": [
-          1,
-          2
-        ],
-        "eager_threshold_variant": [
-          1,
-          2
-        ],
-        "progress_engine_variant": [
           1,
           2
         ]
       },
       "correctness_checks": [
-        "Verify CHECKSUM matches baseline for same msg_size/iters across MPI variants",
-        "Confirm runs complete with exactly 2 ranks and no MPI errors/hangs",
-        "Validate message matching invariants (same tag=123, same peer ranks, same communicator) are unchanged"
+        "CHECKSUM output unchanged for same msg_size/iters across variants",
+        "No MPI errors; strict preservation of rank/tag/comm/order message matching (no code changes)",
+        "Bitwise buffer initialization pattern unchanged (sanity: checksum consistent across repeated runs within same variant)"
       ],
       "performance_metrics": [
         "TIME_SEC",
-        "iterations_per_second",
         "effective_bandwidth_bytes_per_sec",
-        "mpi_wait_pct"
+        "per_iter_roundtrip_latency_sec"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "TIME_SEC does not improve (or regresses by >5%) compared to baseline for representative msg_size values",
-        "Any correctness check fails (checksum mismatch, hang, or MPI error)"
+        "TIME_SEC regresses by >5% versus baseline under same placement and fabric conditions",
+        "CHECKSUM differs or any MPI runtime instability/abort occurs",
+        "Observed jitter/variance increases materially (e.g., stddev TIME_SEC >2x baseline)"
       ],
       "proposed_by": "Communication & Resilience Expert"
     }
   ],
   "selected_candidate": {
     "pattern": "Performance-Optimized Dependency Selection",
-    "target": "MPI runtime/library selection and configuration for ping-pong exchange",
-    "rationale": "Profiling indicates communication latency dominates (MPI_Waitall hotspot); using a more optimized MPI implementation/build and transport settings can reduce message latency and wait time without changing message matching semantics.",
-    "action_sketch": "Benchmark the same binary against newer/optimized MPI stacks (e.g., vendor-tuned MPI vs baseline) and enable low-latency transports via runtime parameters/MCA/MPICH CVARs; keep rank/tag/comm/order identical and only change MPI dependency/runtime configuration.",
+    "target": "MPI runtime/library selection and version for 2-rank ping-pong",
+    "rationale": "Profiling shows communication wait dominates (MPI_Waitall/latency bottleneck); switching to a newer or better-tuned MPI stack (and enabling its transport features) can reduce latency without changing message matching semantics.",
+    "action_sketch": "Benchmark the same binary across multiple MPI implementations/versions available on the system (e.g., newer Open MPI vs newer MPICH/vendor MPI) and select the one with lowest ping-pong time; ensure consistent transport configuration (e.g., UCX/OFI provider) and rerun with identical rank/tag/comm/order.",
     "preconditions": [
-      "Ability to run the program with alternative MPI implementations or versions on the target system",
-      "Cluster fabric/transport (e.g., UCX/OFI) available and configurable via MPI runtime settings",
-      "Job environment allows per-run MPI runtime parameter changes"
+      "Access to multiple MPI implementations/versions or ability to load different MPI modules/containers on the target cluster",
+      "Rebuild the application with each MPI (ABI compatibility not assumed) using the same compiler and optimization level",
+      "Network fabric and job launcher support the chosen MPI transport/provider"
     ],
     "parameters_to_sweep": {
       "mpi_impl_variant": [
         1,
         2
       ],
+      "mpi_version_variant": [
+        1,
+        2
+      ],
       "transport_variant": [
-        1,
-        2
-      ],
-      "eager_threshold_variant": [
-        1,
-        2
-      ],
-      "progress_engine_variant": [
         1,
         2
       ]
     },
     "correctness_checks": [
-      "Verify CHECKSUM matches baseline for same msg_size/iters across MPI variants",
-      "Confirm runs complete with exactly 2 ranks and no MPI errors/hangs",
-      "Validate message matching invariants (same tag=123, same peer ranks, same communicator) are unchanged"
+      "CHECKSUM output unchanged for same msg_size/iters across variants",
+      "No MPI errors; strict preservation of rank/tag/comm/order message matching (no code changes)",
+      "Bitwise buffer initialization pattern unchanged (sanity: checksum consistent across repeated runs within same variant)"
     ],
     "performance_metrics": [
       "TIME_SEC",
-      "iterations_per_second",
       "effective_bandwidth_bytes_per_sec",
-      "mpi_wait_pct"
+      "per_iter_roundtrip_latency_sec"
     ],
     "risk_level": "low",
     "rollback_criteria": [
-      "TIME_SEC does not improve (or regresses by >5%) compared to baseline for representative msg_size values",
-      "Any correctness check fails (checksum mismatch, hang, or MPI error)"
+      "TIME_SEC regresses by >5% versus baseline under same placement and fabric conditions",
+      "CHECKSUM differs or any MPI runtime instability/abort occurs",
+      "Observed jitter/variance increases materially (e.g., stddev TIME_SEC >2x baseline)"
     ],
     "proposed_by": "Communication & Resilience Expert"
   },

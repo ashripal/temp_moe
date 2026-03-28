@@ -43,22 +43,6 @@ class RunTrial:
 
 
 @dataclass
-# class RunMetrics:
-#     run_success: bool
-#     successful_runs: int
-#     total_runs: int
-#     timeout_count: int
-#     crash_count: int
-#     exit_codes: List[int]
-#     wall_time_mean: Optional[float]
-#     wall_time_median: Optional[float]
-#     wall_time_std: Optional[float]
-#     wall_time_min: Optional[float]
-#     wall_time_max: Optional[float]
-#     representative_stdout: str
-#     representative_stderr: str
-#     trials: List[Dict[str, Any]]
-@dataclass
 class RunMetrics:
     run_success: bool
     successful_runs: int
@@ -100,18 +84,6 @@ class DiffMetrics:
 
 
 @dataclass
-# class ComparisonReport:
-#     original_source: str
-#     optimized_source: str
-#     original_build: BuildMetrics
-#     optimized_build: BuildMetrics
-#     original_run: Optional[RunMetrics]
-#     optimized_run: Optional[RunMetrics]
-#     output_comparison: Optional[OutputComparison]
-#     diff_metrics: DiffMetrics
-#     speedup: Optional[float]
-#     percent_improvement: Optional[float]
-@dataclass
 class ComparisonReport:
     original_source: str
     optimized_source: str
@@ -134,7 +106,9 @@ class ComparisonReport:
     significance_reason: Optional[str]
 
 
-# ---------- Build helpers ----------
+# ---------- Utility helpers ----------
+
+
 def trimmed_mean(values: List[float], proportion_to_cut: float = 0.1) -> Optional[float]:
     if not values:
         return None
@@ -216,16 +190,12 @@ def compare_float_lists_summary(
         and orig_cv is not None
         and opt_cv is not None
     ):
-        # Simple heuristic:
-        # treat the result as likely meaningful only if the robust improvement
-        # is at least 5% and runtime noise is not too large.
         likely_significant = (
             median_improvement >= 5.0
             and trimmed_mean_improvement >= 5.0
             and orig_cv < 0.10
             and opt_cv < 0.10
         )
-
         reason = (
             f"median_improvement={median_improvement:.2f}%, "
             f"trimmed_mean_improvement={trimmed_mean_improvement:.2f}%, "
@@ -245,13 +215,25 @@ def compare_float_lists_summary(
 
 
 def count_warnings(stderr_text: str) -> int:
-    # Generic compiler-warning count.
     return len(re.findall(r"\bwarning\b", stderr_text, flags=re.IGNORECASE))
 
 
 def count_errors(stderr_text: str) -> int:
-    # Generic compiler-error count.
     return len(re.findall(r"\berror\b", stderr_text, flags=re.IGNORECASE))
+
+
+def looks_like_mpi_source(path: Path) -> bool:
+    hay = str(path).lower()
+    return any(token in hay for token in ["mpi", "pingpong", "allreduce", "halo"])
+
+
+def default_run_prefix(compiler: str, original_source: Path, optimized_source: Path) -> List[str]:
+    if compiler.strip().lower() == "mpicc" or looks_like_mpi_source(original_source) or looks_like_mpi_source(optimized_source):
+        return ["mpirun", "-np", "2"]
+    return []
+
+
+# ---------- Build helpers ----------
 
 
 def build_c_file(
@@ -292,9 +274,8 @@ def run_binary_once(
     binary_path: Path,
     program_args: List[str],
     timeout_seconds: float,
-    run_prefix: List[str]
+    run_prefix: List[str],
 ) -> RunTrial:
-    # cmd = [str(binary_path), *program_args]
     cmd = [*run_prefix, str(binary_path), *program_args]
 
     start = time.perf_counter()
@@ -328,32 +309,6 @@ def run_binary_once(
         )
 
 
-# def summarize_trials(trials: List[RunTrial]) -> RunMetrics:
-#     successful = [t for t in trials if t.success and not t.timed_out]
-#     wall_times = [t.wall_time_seconds for t in successful]
-
-#     representative_stdout = trials[0].stdout if trials else ""
-#     representative_stderr = trials[0].stderr if trials else ""
-
-#     crash_count = sum(1 for t in trials if (not t.timed_out and t.return_code != 0))
-#     timeout_count = sum(1 for t in trials if t.timed_out)
-
-#     return RunMetrics(
-#         run_success=(len(successful) == len(trials) and len(trials) > 0),
-#         successful_runs=len(successful),
-#         total_runs=len(trials),
-#         timeout_count=timeout_count,
-#         crash_count=crash_count,
-#         exit_codes=[t.return_code for t in trials],
-#         wall_time_mean=(statistics.mean(wall_times) if wall_times else None),
-#         wall_time_median=(statistics.median(wall_times) if wall_times else None),
-#         wall_time_std=(statistics.stdev(wall_times) if len(wall_times) >= 2 else 0.0 if len(wall_times) == 1 else None),
-#         wall_time_min=(min(wall_times) if wall_times else None),
-#         wall_time_max=(max(wall_times) if wall_times else None),
-#         representative_stdout=representative_stdout,
-#         representative_stderr=representative_stderr,
-#         trials=[asdict(t) for t in trials],
-#     )
 def summarize_trials(
     trials: List[RunTrial],
     warmup_trials: int,
@@ -390,29 +345,13 @@ def summarize_trials(
     )
 
 
-# def run_binary_repeated(
-#     binary_path: Path,
-#     program_args: List[str],
-#     timeout_seconds: float,
-#     trials: int,
-# ) -> RunMetrics:
-#     collected: List[RunTrial] = []
-#     for _ in range(trials):
-#         collected.append(
-#             run_binary_once(
-#                 binary_path=binary_path,
-#                 program_args=program_args,
-#                 timeout_seconds=timeout_seconds,
-#             )
-#         )
-#     return summarize_trials(collected)
 def run_binary_repeated(
     binary_path: Path,
     program_args: List[str],
     timeout_seconds: float,
     trials: int,
     warmup_trials: int,
-    run_prefix: List[str]
+    run_prefix: List[str],
 ) -> RunMetrics:
     collected: List[RunTrial] = []
     total_runs = warmup_trials + trials
@@ -423,7 +362,7 @@ def run_binary_repeated(
                 binary_path=binary_path,
                 program_args=program_args,
                 timeout_seconds=timeout_seconds,
-                run_prefix=run_prefix
+                run_prefix=run_prefix,
             )
         )
 
@@ -433,42 +372,13 @@ def run_binary_repeated(
 # ---------- Comparison helpers ----------
 
 
-# def compare_outputs(
-#     original_run: RunMetrics,
-#     optimized_run: RunMetrics,
-# ) -> OutputComparison:
-#     original_exit = original_run.exit_codes[0] if original_run.exit_codes else None
-#     optimized_exit = optimized_run.exit_codes[0] if optimized_run.exit_codes else None
-
-#     stdout_match = (
-#         original_run.representative_stdout == optimized_run.representative_stdout
-#     )
-#     stderr_match = (
-#         original_run.representative_stderr == optimized_run.representative_stderr
-#     )
-#     exit_code_match = (original_exit == optimized_exit)
-
-#     return OutputComparison(
-#         exit_code_match=exit_code_match,
-#         stdout_match=stdout_match,
-#         stderr_match=stderr_match,
-#         correctness_pass=(stdout_match and stderr_match and exit_code_match),
-#     )
 def normalize_stdout(text: str) -> str:
-    """
-    Remove non-deterministic lines (e.g., timing output) so correctness
-    comparison only considers stable semantic outputs like CHECKSUM.
-    """
     filtered = []
     for line in text.splitlines():
         line = line.strip()
-
-        # Ignore timing lines
         if line.startswith("TIME_SEC="):
             continue
-
         filtered.append(line)
-
     return "\n".join(filtered)
 
 
@@ -483,11 +393,7 @@ def compare_outputs(
     optimized_stdout = normalize_stdout(optimized_run.representative_stdout)
 
     stdout_match = (original_stdout == optimized_stdout)
-
-    stderr_match = (
-        original_run.representative_stderr == optimized_run.representative_stderr
-    )
-
+    stderr_match = (original_run.representative_stderr == optimized_run.representative_stderr)
     exit_code_match = (original_exit == optimized_exit)
 
     correctness_pass = (
@@ -504,6 +410,7 @@ def compare_outputs(
         stderr_match=stderr_match,
         correctness_pass=correctness_pass,
     )
+
 
 def compute_performance_change(
     original_run: Optional[RunMetrics],
@@ -542,28 +449,6 @@ def compute_performance_change(
     }
 
 
-def compute_speedup(
-    original_run: Optional[RunMetrics],
-    optimized_run: Optional[RunMetrics],
-) -> tuple[Optional[float], Optional[float]]:
-    if (
-        original_run is None
-        or optimized_run is None
-        or original_run.wall_time_mean is None
-        or optimized_run.wall_time_mean is None
-        or optimized_run.wall_time_mean <= 0
-        or original_run.wall_time_mean <= 0
-    ):
-        return None, None
-
-    speedup = original_run.wall_time_mean / optimized_run.wall_time_mean
-    percent_improvement = (
-        (original_run.wall_time_mean - optimized_run.wall_time_mean)
-        / original_run.wall_time_mean
-    ) * 100.0
-    return speedup, percent_improvement
-
-
 def compute_diff_metrics(
     original_source: Path,
     optimized_source: Path,
@@ -597,9 +482,7 @@ def compute_diff_metrics(
             lines_changed += max(deleted, added)
 
     total_original = max(len(original_lines), 1)
-    percent_file_changed = (
-        (lines_added + lines_deleted) / total_original
-    ) * 100.0
+    percent_file_changed = ((lines_added + lines_deleted) / total_original) * 100.0
 
     return DiffMetrics(
         lines_original=len(original_lines),
@@ -614,6 +497,7 @@ def compute_diff_metrics(
 
 # ---------- Main comparison logic ----------
 
+
 def compare_versions(
     original_source: Path,
     optimized_source: Path,
@@ -623,8 +507,11 @@ def compare_versions(
     timeout_seconds: float,
     trials: int,
     warmup_trials: int,
-    run_prefix: List[str]
+    run_prefix: List[str],
 ) -> ComparisonReport:
+    if not run_prefix:
+        run_prefix = default_run_prefix(compiler, original_source, optimized_source)
+
     with tempfile.TemporaryDirectory(prefix="compare_c_versions_") as tmpdir:
         tmpdir_path = Path(tmpdir)
 
@@ -671,7 +558,6 @@ def compare_versions(
         if original_run is not None and optimized_run is not None:
             output_comparison = compare_outputs(original_run, optimized_run)
 
-        # speedup, percent_improvement = compute_speedup(original_run, optimized_run)
         perf = compute_performance_change(original_run, optimized_run)
 
         timing_summary = {
@@ -729,6 +615,8 @@ def compare_versions(
             likely_significant=timing_summary["likely_significant"],
             significance_reason=timing_summary["significance_reason"],
         )
+
+
 # ---------- CLI ----------
 
 
@@ -778,18 +666,17 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional path to write the full JSON report.",
     )
-
     parser.add_argument(
         "--warmup-trials",
         type=int,
         default=2,
         help="Number of warm-up runs to discard before timed trials.",
     )
-
     parser.add_argument(
         "--run-prefix",
         default="",
-        help='Optional launcher prefix as a shell-style string, e.g. "mpirun -n 2".',
+        help='Optional launcher prefix as a shell-style string, e.g. "mpirun -np 2". '
+             "If omitted, MPI execution is inferred automatically for mpicc/MPI sources.",
     )
     return parser.parse_args()
 
@@ -805,15 +692,6 @@ def main() -> None:
     if not optimized_source.exists():
         raise FileNotFoundError(f"Optimized source not found: {optimized_source}")
 
-    # report = compare_versions(
-    #     original_source=original_source,
-    #     optimized_source=optimized_source,
-    #     compiler=args.compiler,
-    #     cflags=shlex.split(args.cflags),
-    #     program_args=shlex.split(args.program_args),
-    #     timeout_seconds=args.timeout_seconds,
-    #     trials=args.trials,
-    # )
     report = compare_versions(
         original_source=original_source,
         optimized_source=optimized_source,

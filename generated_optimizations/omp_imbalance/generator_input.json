@@ -11,24 +11,24 @@
   "ranked_candidates": [
     {
       "pattern": "Concurrency Control / Lock Optimization",
-      "target": "OpenMP loop execution stability via thread placement/affinity",
-      "rationale": "Telemetry shows significant OpenMP barrier time (omp_barrier_pct=22%) and imbalance (omp_imbalance_ratio=1.8). The retrieved Lock Optimization pattern specifically targets OS scheduling/thread migration effects using CPU affinity/thread pinning to reduce synchronization stalls and improve consistent parallel execution.",
-      "action_sketch": "Run with explicit OpenMP affinity settings to pin threads to cores and stabilize execution: set OMP_PROC_BIND=true and test OMP_PLACES=cores (and threads if SMT), optionally use spread/close to reduce contention. Keep code unchanged and rely on runtime env vars.",
+      "target": "OpenMP thread placement/affinity to reduce barrier wait and variance",
+      "rationale": "Profiling shows high OpenMP barrier time (22%) and imbalance (1.8); the retrieved pattern recommends CPU affinity (thread pinning) to avoid OS thread migration and reduce synchronization/overhead variability, which can amplify barrier waiting in OpenMP regions.",
+      "action_sketch": "Enable and pin OpenMP threads to cores/sockets using runtime settings (e.g., OMP_PROC_BIND/OMP_PLACES) and keep placement consistent across runs; optionally set close/spread binding to match core topology and reduce cross-core migration overhead during the imbalanced parallel-for.",
       "preconditions": [
-        "OpenMP runtime supports OMP_PROC_BIND/OMP_PLACES (OpenMP 4.0+) and job scheduler allows binding (e.g., srun/numactl/taskset not conflicting)"
+        "OpenMP runtime supports OMP_PROC_BIND and OMP_PLACES",
+        "Job launcher/OS allows setting affinity (no conflicting pinning policies)",
+        "Run uses a fixed OMP_NUM_THREADS for comparability"
       ],
       "parameters_to_sweep": {
         "OMP_PROC_BIND": [
-          "true",
-          "false"
+          "close",
+          "spread",
+          "true"
         ],
         "OMP_PLACES": [
           "cores",
-          "threads"
-        ],
-        "bind_policy": [
-          "close",
-          "spread"
+          "threads",
+          "sockets"
         ],
         "OMP_NUM_THREADS": [
           1,
@@ -39,10 +39,11 @@
         ]
       },
       "correctness_checks": [
-        "Verify CHECKSUM output matches baseline for fixed n and skew across all affinity/binding variants"
+        "Verify CHECKSUM output matches baseline for fixed n,skew across affinity settings",
+        "Confirm no changes to reduction semantics or floating-point flags that would alter results beyond expected reproducibility"
       ],
       "performance_metrics": [
-        "runtime",
+        "wall_time",
         "omp_barrier_pct",
         "omp_imbalance_ratio",
         "scaling_efficiency",
@@ -51,8 +52,9 @@
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "Runtime increases or omp_barrier_pct/omp_imbalance_ratio worsen versus baseline with default binding",
-        "CHECKSUM changes for identical inputs"
+        "Wall time does not improve or regresses by >5% versus baseline",
+        "omp_barrier_pct does not decrease or increases materially",
+        "Observed CPU migrations/context switches increase under chosen binding"
       ],
       "catalog_score": 11,
       "telemetry_alignment": [],
@@ -61,24 +63,24 @@
   ],
   "selected_candidate": {
     "pattern": "Concurrency Control / Lock Optimization",
-    "target": "OpenMP loop execution stability via thread placement/affinity",
-    "rationale": "Telemetry shows significant OpenMP barrier time (omp_barrier_pct=22%) and imbalance (omp_imbalance_ratio=1.8). The retrieved Lock Optimization pattern specifically targets OS scheduling/thread migration effects using CPU affinity/thread pinning to reduce synchronization stalls and improve consistent parallel execution.",
-    "action_sketch": "Run with explicit OpenMP affinity settings to pin threads to cores and stabilize execution: set OMP_PROC_BIND=true and test OMP_PLACES=cores (and threads if SMT), optionally use spread/close to reduce contention. Keep code unchanged and rely on runtime env vars.",
+    "target": "OpenMP thread placement/affinity to reduce barrier wait and variance",
+    "rationale": "Profiling shows high OpenMP barrier time (22%) and imbalance (1.8); the retrieved pattern recommends CPU affinity (thread pinning) to avoid OS thread migration and reduce synchronization/overhead variability, which can amplify barrier waiting in OpenMP regions.",
+    "action_sketch": "Enable and pin OpenMP threads to cores/sockets using runtime settings (e.g., OMP_PROC_BIND/OMP_PLACES) and keep placement consistent across runs; optionally set close/spread binding to match core topology and reduce cross-core migration overhead during the imbalanced parallel-for.",
     "preconditions": [
-      "OpenMP runtime supports OMP_PROC_BIND/OMP_PLACES (OpenMP 4.0+) and job scheduler allows binding (e.g., srun/numactl/taskset not conflicting)"
+      "OpenMP runtime supports OMP_PROC_BIND and OMP_PLACES",
+      "Job launcher/OS allows setting affinity (no conflicting pinning policies)",
+      "Run uses a fixed OMP_NUM_THREADS for comparability"
     ],
     "parameters_to_sweep": {
       "OMP_PROC_BIND": [
-        "true",
-        "false"
+        "close",
+        "spread",
+        "true"
       ],
       "OMP_PLACES": [
         "cores",
-        "threads"
-      ],
-      "bind_policy": [
-        "close",
-        "spread"
+        "threads",
+        "sockets"
       ],
       "OMP_NUM_THREADS": [
         1,
@@ -89,10 +91,11 @@
       ]
     },
     "correctness_checks": [
-      "Verify CHECKSUM output matches baseline for fixed n and skew across all affinity/binding variants"
+      "Verify CHECKSUM output matches baseline for fixed n,skew across affinity settings",
+      "Confirm no changes to reduction semantics or floating-point flags that would alter results beyond expected reproducibility"
     ],
     "performance_metrics": [
-      "runtime",
+      "wall_time",
       "omp_barrier_pct",
       "omp_imbalance_ratio",
       "scaling_efficiency",
@@ -101,8 +104,9 @@
     ],
     "risk_level": "low",
     "rollback_criteria": [
-      "Runtime increases or omp_barrier_pct/omp_imbalance_ratio worsen versus baseline with default binding",
-      "CHECKSUM changes for identical inputs"
+      "Wall time does not improve or regresses by >5% versus baseline",
+      "omp_barrier_pct does not decrease or increases materially",
+      "Observed CPU migrations/context switches increase under chosen binding"
     ],
     "catalog_score": 11,
     "telemetry_alignment": [],

@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-static size_t round_up_multiple(size_t x, size_t m) {
-    return (x + (m - 1)) / m * m;
-}
-
 static uint64_t checksum_float(const float* a, size_t n) {
     double s = 0.0;
     for (size_t i = 0; i < n; i++) s += (double)a[i];
@@ -19,20 +15,17 @@ int main(int argc, char** argv) {
     if (argc > 1) n = (size_t)atoll(argv[1]);
     if (argc > 2) reps = atoi(argv[2]);
 
-    const size_t alignment = 64;
-    size_t bytes = round_up_multiple(n * sizeof(float), alignment);
-
-    float* x = (float*)aligned_alloc(alignment, bytes);
-    float* y = (float*)aligned_alloc(alignment, bytes);
-    float* z = (float*)aligned_alloc(alignment, bytes);
+    float* x = (float*)aligned_alloc(64, n * sizeof(float));
+    float* y = (float*)aligned_alloc(64, n * sizeof(float));
+    float* z = (float*)aligned_alloc(64, n * sizeof(float));
     if (!x || !y || !z) {
         fprintf(stderr, "Allocation failed. Try smaller n.\n");
         return 2;
     }
 
     for (size_t i = 0; i < n; i++) {
-        x[i] = (float)((i % 100) * 0.001);
-        y[i] = (float)(((i + 7) % 100) * 0.002);
+        x[i] = (float)(i % 100) * 0.001f;
+        y[i] = (float)((i + 7) % 100) * 0.002f;
         z[i] = 0.0f;
     }
 

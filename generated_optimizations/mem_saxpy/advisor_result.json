@@ -11,13 +11,12 @@
       "candidates": [
         {
           "pattern": "Use Smaller Data Types",
-          "target": "SAXPY arrays x/y/z and scalar a in the memory-bandwidth-bound loop",
-          "rationale": "Profiling/telemetry indicate a memory-bound SAXPY (memory_bound_score=0.85, low arithmetic intensity). Retrieved pattern evidence recommends reducing 64-bit double usage when precision allows to cut cache pressure and memory traffic, improving cache miss behavior and effective bandwidth.",
-          "action_sketch": "If numerical requirements permit, change x/y/z from double to float (and a to float), keep checksum accumulation in double to reduce validation noise; rebuild with -O3 and verify vectorization remains enabled.",
+          "target": "SAXPY loop arrays x/y/z and scalar a",
+          "rationale": "Profiling/telemetry indicate the hotspot is memory-bandwidth bound (memory_bound_score=0.85) with low arithmetic intensity; the retrieved pattern recommends replacing 64-bit doubles with smaller satisfactory types to reduce cache pressure and memory traffic, improving cache behavior and throughput.",
+          "action_sketch": "Assess required numeric precision; if acceptable, change x/y/z from double to float (and a to float), update initialization constants with f-suffix, keep alignment, and update checksum to accumulate in double (or uint64) from float inputs to preserve a stable check.",
           "preconditions": [
-            "Application accuracy requirements allow single precision for x/y/z (or a mixed-precision approach) within an agreed tolerance",
-            "aligned_alloc alignment remains valid for the new element size (keep 64B alignment)",
-            "No external ABI/IO contract requires double arrays"
+            "Application accuracy requirements allow single-precision (or mixed precision) for x/y/z without violating output tolerances",
+            "Compiler flags keep vectorization enabled (e.g., -O3) and no strict FP mode changes unless explicitly approved"
           ],
           "parameters_to_sweep": {
             "variant": [
@@ -26,8 +25,8 @@
             ]
           },
           "correctness_checks": [
-            "Compare checksum (or L2 norm / max-abs error) against double-baseline with tolerance appropriate to float (e.g., relative error <= 1e-5 to 1e-6 depending on use case)",
-            "Ensure no NaNs/Infs introduced and results are stable across reps"
+            "Compare float vs double outputs with relative/absolute tolerance (e.g., max_abs_err and max_rel_err over z) for representative n and reps",
+            "Verify checksum (or a higher-quality reference reduction) matches expected within tolerance across runs"
           ],
           "performance_metrics": [
             "runtime",
@@ -35,8 +34,8 @@
           ],
           "risk_level": "low",
           "rollback_criteria": [
-            "If error exceeds tolerance vs double-baseline",
-            "If runtime does not improve (or regresses) due to loss of vectorization/alignment issues"
+            "If numerical error exceeds agreed tolerance or checksum/reference comparison fails, revert arrays and computations to double",
+            "If runtime does not improve measurably (e.g., <3-5%) or regressions appear in cache/memory metrics, revert"
           ],
           "catalog_score": 0,
           "telemetry_alignment": []
@@ -47,13 +46,12 @@
   "final_ranked_candidates": [
     {
       "pattern": "Use Smaller Data Types",
-      "target": "SAXPY arrays x/y/z and scalar a in the memory-bandwidth-bound loop",
-      "rationale": "Profiling/telemetry indicate a memory-bound SAXPY (memory_bound_score=0.85, low arithmetic intensity). Retrieved pattern evidence recommends reducing 64-bit double usage when precision allows to cut cache pressure and memory traffic, improving cache miss behavior and effective bandwidth.",
-      "action_sketch": "If numerical requirements permit, change x/y/z from double to float (and a to float), keep checksum accumulation in double to reduce validation noise; rebuild with -O3 and verify vectorization remains enabled.",
+      "target": "SAXPY loop arrays x/y/z and scalar a",
+      "rationale": "Profiling/telemetry indicate the hotspot is memory-bandwidth bound (memory_bound_score=0.85) with low arithmetic intensity; the retrieved pattern recommends replacing 64-bit doubles with smaller satisfactory types to reduce cache pressure and memory traffic, improving cache behavior and throughput.",
+      "action_sketch": "Assess required numeric precision; if acceptable, change x/y/z from double to float (and a to float), update initialization constants with f-suffix, keep alignment, and update checksum to accumulate in double (or uint64) from float inputs to preserve a stable check.",
       "preconditions": [
-        "Application accuracy requirements allow single precision for x/y/z (or a mixed-precision approach) within an agreed tolerance",
-        "aligned_alloc alignment remains valid for the new element size (keep 64B alignment)",
-        "No external ABI/IO contract requires double arrays"
+        "Application accuracy requirements allow single-precision (or mixed precision) for x/y/z without violating output tolerances",
+        "Compiler flags keep vectorization enabled (e.g., -O3) and no strict FP mode changes unless explicitly approved"
       ],
       "parameters_to_sweep": {
         "variant": [
@@ -62,8 +60,8 @@
         ]
       },
       "correctness_checks": [
-        "Compare checksum (or L2 norm / max-abs error) against double-baseline with tolerance appropriate to float (e.g., relative error <= 1e-5 to 1e-6 depending on use case)",
-        "Ensure no NaNs/Infs introduced and results are stable across reps"
+        "Compare float vs double outputs with relative/absolute tolerance (e.g., max_abs_err and max_rel_err over z) for representative n and reps",
+        "Verify checksum (or a higher-quality reference reduction) matches expected within tolerance across runs"
       ],
       "performance_metrics": [
         "runtime",
@@ -71,8 +69,8 @@
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "If error exceeds tolerance vs double-baseline",
-        "If runtime does not improve (or regresses) due to loss of vectorization/alignment issues"
+        "If numerical error exceeds agreed tolerance or checksum/reference comparison fails, revert arrays and computations to double",
+        "If runtime does not improve measurably (e.g., <3-5%) or regressions appear in cache/memory metrics, revert"
       ],
       "catalog_score": 10,
       "telemetry_alignment": [],

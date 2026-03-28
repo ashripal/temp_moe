@@ -28,15 +28,20 @@ int main(int argc, char** argv) {
     if (argc > 2) skew = atoi(argv[2]);
 
 #ifdef _OPENMP
-    // Stabilize OpenMP execution by defaulting to thread pinning/affinity.
-    // Only set defaults if user/job launcher hasn't specified them.
-    // This is a low-risk way to reduce OS scheduling migration that can
-    // inflate barrier time and worsen imbalance.
-    if (getenv("OMP_PROC_BIND") == NULL) {
-        (void)setenv("OMP_PROC_BIND", "true", 0);
-    }
-    if (getenv("OMP_PLACES") == NULL) {
-        (void)setenv("OMP_PLACES", "cores", 0);
+    /*
+     * Reduce OS thread migration and synchronization variance by pinning threads.
+     * Only set defaults if the user/job launcher has not already specified them.
+     */
+    {
+        const char* pb = getenv("OMP_PROC_BIND");
+        const char* pl = getenv("OMP_PLACES");
+#if defined(_POSIX_C_SOURCE) || defined(__unix__) || defined(__APPLE__)
+        if (!pb || !pb[0]) setenv("OMP_PROC_BIND", "close", 0);
+        if (!pl || !pl[0]) setenv("OMP_PLACES", "cores", 0);
+#else
+        (void)pb;
+        (void)pl;
+#endif
     }
 #endif
 

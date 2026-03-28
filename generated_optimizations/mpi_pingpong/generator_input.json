@@ -1,5 +1,5 @@
 {
-  "original_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <mpi.h>\n\nstatic uint64_t checksum_bytes(const unsigned char* buf, int n) {\n    uint64_t s = 0;\n    for (int i = 0; i < n; i++) s += buf[i];\n    return s;\n}\n\nint main(int argc, char** argv) {\n    int msg_size = 1 << 20; // 1MB default\n    int iters = 200;\n\n    if (argc > 1) msg_size = atoi(argv[1]);\n    if (argc > 2) iters = atoi(argv[2]);\n\n    MPI_Init(&argc, &argv);\n\n    int rank, size;\n    MPI_Comm_rank(MPI_COMM_WORLD, &rank);\n    MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n    if (size != 2) {\n        if (rank == 0) fprintf(stderr, \"Run with exactly 2 ranks.\\n\");\n        MPI_Finalize();\n        return 2;\n    }\n\n    unsigned char* buf = (unsigned char*)malloc((size_t)msg_size);\n    if (!buf) {\n        if (rank == 0) fprintf(stderr, \"malloc failed\\n\");\n        MPI_Finalize();\n        return 3;\n    }\n\n    for (int i = 0; i < msg_size; i++) buf[i] = (unsigned char)((i + rank) % 251);\n\n    // Synchronize before timing\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t0 = MPI_Wtime();\n\n    for (int i = 0; i < iters; i++) {\n        if (rank == 0) {\n            MPI_Send(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD);\n            MPI_Recv(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n        } else {\n            MPI_Recv(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n            MPI_Send(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD);\n        }\n    }\n\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t1 = MPI_Wtime();\n    double elapsed = t1 - t0;\n\n    uint64_t cs = checksum_bytes(buf, msg_size);\n\n    if (rank == 0) {\n        printf(\"TIME_SEC=%f\\n\", elapsed);\n        printf(\"CHECKSUM=%llu\\n\", (unsigned long long)cs);\n        fflush(stdout);\n    }\n\n    free(buf);\n    MPI_Finalize();\n    return 0;\n}",
+  "original_code": "#include <stdio.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <mpi.h>\n\nstatic uint64_t checksum_bytes(const unsigned char* buf, int n) {\n    uint64_t s = 0;\n    for (int i = 0; i < n; i++) s += buf[i];\n    return s;\n}\n\nint main(int argc, char** argv) {\n    int msg_size = 1 << 20;   // 1MB default\n    int iters = 200;\n    int chunks = 64;          // deliberately fragment communication\n\n    if (argc > 1) msg_size = atoi(argv[1]);\n    if (argc > 2) iters = atoi(argv[2]);\n    if (argc > 3) chunks = atoi(argv[3]);\n\n    MPI_Init(&argc, &argv);\n\n    int rank, size;\n    MPI_Comm_rank(MPI_COMM_WORLD, &rank);\n    MPI_Comm_size(MPI_COMM_WORLD, &size);\n\n    if (size != 2) {\n        if (rank == 0) fprintf(stderr, \"Run with exactly 2 ranks.\\n\");\n        MPI_Finalize();\n        return 2;\n    }\n\n    if (chunks <= 0) chunks = 1;\n    if (chunks > msg_size) chunks = msg_size;\n\n    unsigned char* buf = (unsigned char*)malloc((size_t)msg_size);\n    if (!buf) {\n        if (rank == 0) fprintf(stderr, \"malloc failed\\n\");\n        MPI_Finalize();\n        return 3;\n    }\n\n    for (int i = 0; i < msg_size; i++) {\n        buf[i] = (unsigned char)((i + rank) % 251);\n    }\n\n    int base = msg_size / chunks;\n    int rem = msg_size % chunks;\n\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t0 = MPI_Wtime();\n\n    for (int iter = 0; iter < iters; iter++) {\n        int offset = 0;\n\n        // Deliberately bad: unnecessary synchronization each iteration\n        MPI_Barrier(MPI_COMM_WORLD);\n\n        if (rank == 0) {\n            for (int c = 0; c < chunks; c++) {\n                int this_size = base + (c < rem ? 1 : 0);\n\n                // Deliberately bad: many small blocking sends\n                MPI_Send(buf + offset, this_size, MPI_BYTE, 1, 1000 + c, MPI_COMM_WORLD);\n\n                // Deliberately bad: synchronize after each chunk\n                MPI_Barrier(MPI_COMM_WORLD);\n\n                MPI_Recv(buf + offset, this_size, MPI_BYTE, 1, 2000 + c, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n\n                // Deliberately bad: synchronize again after reply\n                MPI_Barrier(MPI_COMM_WORLD);\n\n                offset += this_size;\n            }\n        } else {\n            for (int c = 0; c < chunks; c++) {\n                int this_size = base + (c < rem ? 1 : 0);\n\n                MPI_Recv(buf + offset, this_size, MPI_BYTE, 0, 1000 + c, MPI_COMM_WORLD, MPI_STATUS_IGNORE);\n\n                MPI_Barrier(MPI_COMM_WORLD);\n\n                MPI_Send(buf + offset, this_size, MPI_BYTE, 0, 2000 + c, MPI_COMM_WORLD);\n\n                MPI_Barrier(MPI_COMM_WORLD);\n\n                offset += this_size;\n            }\n        }\n\n        // Deliberately bad: extra global sync every iteration\n        MPI_Barrier(MPI_COMM_WORLD);\n    }\n\n    MPI_Barrier(MPI_COMM_WORLD);\n    double t1 = MPI_Wtime();\n    double elapsed = t1 - t0;\n\n    uint64_t cs = checksum_bytes(buf, msg_size);\n\n    if (rank == 0) {\n        printf(\"TIME_SEC=%f\\n\", elapsed);\n        printf(\"CHECKSUM=%llu\\n\", (unsigned long long)cs);\n        fflush(stdout);\n    }\n\n    free(buf);\n    MPI_Finalize();\n    return 0;\n}",
   "profiling_summary": "Hotspots: MPI_Waitall 40%, message exchange dominates runtime, communication latency is the primary bottleneck.",
   "telemetry_summary": "mpi_wait_pct=40.0, omp_barrier_pct=0.0, omp_imbalance_ratio=1.0, memory_bound_score=0.1",
   "telemetry_struct": {
@@ -11,13 +11,12 @@
   "ranked_candidates": [
     {
       "pattern": "Non-Blocking I/O",
-      "target": "MPI ping-pong exchange loop dominated by blocking MPI_Send/MPI_Recv waits",
-      "rationale": "Profiling shows MPI_Waitall at 40% and telemetry indicates communication latency dominates; among allowed patterns, Non-Blocking I/O best matches reducing time spent blocked/waiting by converting blocking operations to non-blocking equivalents while preserving message ordering semantics.",
-      "action_sketch": "Replace the blocking send/recv pair each iteration with non-blocking MPI_Isend/MPI_Irecv posted in the same per-rank order, then complete with MPI_Waitall (or two MPI_Wait) before reusing/overwriting buf; keep the same rank/tag/communicator and iteration ordering, and ensure the receive completes before checksum/use of buf.",
+      "target": "MPI communication synchronization overhead (excessive blocking + barriers)",
+      "rationale": "Profiling shows MPI_Waitall at 40% and message exchange dominating runtime, indicating heavy time spent blocked in communication. The retrieved 'Non-Blocking I/O' pattern targets reducing time spent blocked/waiting and improving latency/CPU efficiency under synchronization-heavy behavior, aligning best with the observed mpi_wait_pct=40.",
+      "action_sketch": "Replace the per-chunk blocking MPI_Send/MPI_Recv + surrounding MPI_Barrier calls with non-blocking MPI_Isend/MPI_Irecv and a single MPI_Waitall per iteration (or per small batch of chunks), preserving the same peers/tags/ordering by posting receives and sends for the same tags and waiting for completion before reusing/modifying buffer regions; remove intra-chunk barriers and keep at most one barrier for timing if needed.",
       "preconditions": [
-        "MPI implementation supports MPI_Isend/MPI_Irecv and MPI_Waitall correctly",
-        "No code path reads/writes the receive buffer before the corresponding wait completes",
-        "Per-iteration ordering (recv-before-send on rank 1; send-before-recv on rank 0) is preserved to avoid deadlock/semantic changes"
+        "Send/recv buffers (buf+offset regions) are not modified or reused until the corresponding non-blocking request completes",
+        "Both ranks post matching Irecv/Isend with identical tags (1000+c and 2000+c) and communicator (MPI_COMM_WORLD)"
       ],
       "parameters_to_sweep": {
         "variant": [
@@ -26,17 +25,17 @@
         ]
       },
       "correctness_checks": [
-        "Verify CHECKSUM matches baseline for multiple msg_size/iters values",
-        "Run with MPI message matching checks (same tag=123, ranks, communicator) and ensure no hangs",
-        "Validate that buffer is not modified between Isend/Irecv posting and completion"
+        "Verify checksum remains identical to baseline for same (msg_size,iters,chunks)",
+        "Run with MPI message matching checks (same source/dest, tags 1000+c and 2000+c) and confirm no deadlock across all iterations",
+        "Enable MPI error checking (return codes) and run under an MPI correctness tool (e.g., with debug build) to ensure requests complete before buffer reuse"
       ],
       "performance_metrics": [
         "runtime"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "TIME_SEC does not improve (or regresses) beyond run-to-run noise versus blocking baseline",
-        "Any mismatch in CHECKSUM or occurrence of hang/deadlock"
+        "Any checksum mismatch or MPI error/deadlock",
+        "mpi_wait_pct does not decrease or total TIME_SEC regresses by >5% versus baseline"
       ],
       "catalog_score": 7,
       "telemetry_alignment": [],
@@ -45,13 +44,12 @@
   ],
   "selected_candidate": {
     "pattern": "Non-Blocking I/O",
-    "target": "MPI ping-pong exchange loop dominated by blocking MPI_Send/MPI_Recv waits",
-    "rationale": "Profiling shows MPI_Waitall at 40% and telemetry indicates communication latency dominates; among allowed patterns, Non-Blocking I/O best matches reducing time spent blocked/waiting by converting blocking operations to non-blocking equivalents while preserving message ordering semantics.",
-    "action_sketch": "Replace the blocking send/recv pair each iteration with non-blocking MPI_Isend/MPI_Irecv posted in the same per-rank order, then complete with MPI_Waitall (or two MPI_Wait) before reusing/overwriting buf; keep the same rank/tag/communicator and iteration ordering, and ensure the receive completes before checksum/use of buf.",
+    "target": "MPI communication synchronization overhead (excessive blocking + barriers)",
+    "rationale": "Profiling shows MPI_Waitall at 40% and message exchange dominating runtime, indicating heavy time spent blocked in communication. The retrieved 'Non-Blocking I/O' pattern targets reducing time spent blocked/waiting and improving latency/CPU efficiency under synchronization-heavy behavior, aligning best with the observed mpi_wait_pct=40.",
+    "action_sketch": "Replace the per-chunk blocking MPI_Send/MPI_Recv + surrounding MPI_Barrier calls with non-blocking MPI_Isend/MPI_Irecv and a single MPI_Waitall per iteration (or per small batch of chunks), preserving the same peers/tags/ordering by posting receives and sends for the same tags and waiting for completion before reusing/modifying buffer regions; remove intra-chunk barriers and keep at most one barrier for timing if needed.",
     "preconditions": [
-      "MPI implementation supports MPI_Isend/MPI_Irecv and MPI_Waitall correctly",
-      "No code path reads/writes the receive buffer before the corresponding wait completes",
-      "Per-iteration ordering (recv-before-send on rank 1; send-before-recv on rank 0) is preserved to avoid deadlock/semantic changes"
+      "Send/recv buffers (buf+offset regions) are not modified or reused until the corresponding non-blocking request completes",
+      "Both ranks post matching Irecv/Isend with identical tags (1000+c and 2000+c) and communicator (MPI_COMM_WORLD)"
     ],
     "parameters_to_sweep": {
       "variant": [
@@ -60,17 +58,17 @@
       ]
     },
     "correctness_checks": [
-      "Verify CHECKSUM matches baseline for multiple msg_size/iters values",
-      "Run with MPI message matching checks (same tag=123, ranks, communicator) and ensure no hangs",
-      "Validate that buffer is not modified between Isend/Irecv posting and completion"
+      "Verify checksum remains identical to baseline for same (msg_size,iters,chunks)",
+      "Run with MPI message matching checks (same source/dest, tags 1000+c and 2000+c) and confirm no deadlock across all iterations",
+      "Enable MPI error checking (return codes) and run under an MPI correctness tool (e.g., with debug build) to ensure requests complete before buffer reuse"
     ],
     "performance_metrics": [
       "runtime"
     ],
     "risk_level": "low",
     "rollback_criteria": [
-      "TIME_SEC does not improve (or regresses) beyond run-to-run noise versus blocking baseline",
-      "Any mismatch in CHECKSUM or occurrence of hang/deadlock"
+      "Any checksum mismatch or MPI error/deadlock",
+      "mpi_wait_pct does not decrease or total TIME_SEC regresses by >5% versus baseline"
     ],
     "catalog_score": 7,
     "telemetry_alignment": [],

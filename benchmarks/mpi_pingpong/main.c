@@ -10,11 +10,13 @@ static uint64_t checksum_bytes(const unsigned char* buf, int n) {
 }
 
 int main(int argc, char** argv) {
-    int msg_size = 1 << 20; // 1MB default
+    int msg_size = 1 << 20;   // 1MB default
     int iters = 200;
+    int chunks = 512;         // much more aggressive fragmentation
 
     if (argc > 1) msg_size = atoi(argv[1]);
     if (argc > 2) iters = atoi(argv[2]);
+    if (argc > 3) chunks = atoi(argv[3]);
 
     MPI_Init(&argc, &argv);
 
@@ -28,6 +30,9 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    if (chunks <= 0) chunks = 1;
+    if (chunks > msg_size) chunks = msg_size;
+
     unsigned char* buf = (unsigned char*)malloc((size_t)msg_size);
     if (!buf) {
         if (rank == 0) fprintf(stderr, "malloc failed\n");
@@ -35,20 +40,63 @@ int main(int argc, char** argv) {
         return 3;
     }
 
-    for (int i = 0; i < msg_size; i++) buf[i] = (unsigned char)((i + rank) % 251);
+    for (int i = 0; i < msg_size; i++) {
+        buf[i] = (unsigned char)((i + rank) % 251);
+    }
 
-    // Synchronize before timing
+    int base = msg_size / chunks;
+    int rem = msg_size % chunks;
+
     MPI_Barrier(MPI_COMM_WORLD);
     double t0 = MPI_Wtime();
 
-    for (int i = 0; i < iters; i++) {
+    for (int iter = 0; iter < iters; iter++) {
+        int offset = 0;
+
+        // Deliberately bad: unnecessary synchronization every iteration
+        MPI_Barrier(MPI_COMM_WORLD);
+
         if (rank == 0) {
-            MPI_Send(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD);
-            MPI_Recv(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            for (int c = 0; c < chunks; c++) {
+                int this_size = base + (c < rem ? 1 : 0);
+
+                // Deliberately bad: extra sync before each chunk
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                // Deliberately bad: many tiny blocking sends
+                MPI_Send(buf + offset, this_size, MPI_BYTE, 1, 1000 + c, MPI_COMM_WORLD);
+
+                // Deliberately bad: sync after send
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                // Deliberately bad: serialized response path
+                MPI_Recv(buf + offset, this_size, MPI_BYTE, 1, 2000 + c, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                // Deliberately bad: sync after receive
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                offset += this_size;
+            }
         } else {
-            MPI_Recv(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Send(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD);
+            for (int c = 0; c < chunks; c++) {
+                int this_size = base + (c < rem ? 1 : 0);
+
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                MPI_Recv(buf + offset, this_size, MPI_BYTE, 0, 1000 + c, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                MPI_Send(buf + offset, this_size, MPI_BYTE, 0, 2000 + c, MPI_COMM_WORLD);
+
+                MPI_Barrier(MPI_COMM_WORLD);
+
+                offset += this_size;
+            }
         }
+
+        // Deliberately bad: extra global sync at end of iteration
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

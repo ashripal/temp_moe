@@ -21,29 +21,49 @@ class LLMClient(Protocol):
 
 
 def _extract_allowed_patterns(prompt: str) -> List[str]:
-    m = re.search(r"ALLOWED_PATTERNS_JSON=(\[[\s\S]*?\])", prompt)
-    if not m:
+    """
+    Extract ALLOWED_PATTERNS_JSON=[...] from the rendered expert prompt.
+
+    The prompt templates are expected to serialize a JSON array onto one line or
+    across multiple lines. If parsing fails, return an empty list.
+    """
+    match = re.search(r"ALLOWED_PATTERNS_JSON=(\[[\s\S]*?\])", prompt)
+    if not match:
         return []
+
     try:
-        return json.loads(m.group(1))
+        parsed = json.loads(match.group(1))
+        if isinstance(parsed, list):
+            return [str(x).strip() for x in parsed if str(x).strip()]
     except Exception:
-        return []
+        pass
+
+    return []
 
 
 def _pick_pattern(allowed: List[str], prefer_keywords: List[str]) -> str:
-    allowed_l = [(p, p.lower()) for p in allowed]
-    for kw in prefer_keywords:
-        kw = kw.lower()
-        for p, pl in allowed_l:
-            if kw in pl:
-                return p
+    """
+    Deterministically pick the first allowed pattern whose normalized text
+    contains one of the preferred keywords. Fallback to the first allowed item.
+    """
+    allowed_lower = [(pattern, pattern.lower()) for pattern in allowed]
+
+    for keyword in prefer_keywords:
+        keyword = keyword.lower()
+        for pattern, pattern_lower in allowed_lower:
+            if keyword in pattern_lower:
+                return pattern
+
     return allowed[0] if allowed else "UNKNOWN_PATTERN"
 
 
 class MockLLM:
     """
     Deterministic offline LLM for testing.
-    It always returns patterns that exist in the provided catalog (allowed list in the prompt).
+
+    It only chooses from ALLOWED_PATTERNS_JSON, which now should typically be the
+    retrieved subset rather than the full catalog. This makes unit tests and dry
+    runs better reflect the real MoE flow.
     """
 
     def complete(self, messages: List[LLMMessage]) -> str:
@@ -55,69 +75,174 @@ class MockLLM:
                 allowed,
                 prefer_keywords=[
                     "openmp",
-                    "thread",
-                    "schedule",
                     "parallel",
+                    "thread",
+                    "barrier",
+                    "imbalance",
+                    "load balance",
+                    "schedule",
+                    "scheduling",
                     "collapse",
                     "reduction",
                     "numa",
-                    "rank",
+                    "affinity",
+                    "rank placement",
+                    "lock",
+                    "synchronization",
                 ],
             )
-            return json.dumps([
-                {
-                    "pattern": pattern,
-                    "target": "foo.c:bar():loop_12",
-                    "rationale": "Telemetry suggests parallel configuration is a plausible lever (mock).",
-                    "action_sketch": "Apply the selected catalog pattern conservatively; tune parameters if applicable.",
-                    "preconditions": ["No semantic changes", "Preserve correctness checks"],
-                    "parameters_to_sweep": {"variant": [1, 2]},
-                    "correctness_checks": ["Run regression tests", "Compare key outputs within tolerance"],
-                    "performance_metrics": ["runtime", "scaling_efficiency"],
-                    "risk_level": "low",
-                    "rollback_criteria": ["Correctness failure", "Runtime regression > 3%"],
-                }
-            ])
+            return json.dumps(
+                [
+                    {
+                        "pattern": pattern,
+                        "target": "foo.c:bar():loop_12",
+                        "rationale": (
+                            "Telemetry suggests synchronization overhead or "
+                            "parallel imbalance is a plausible optimization lever."
+                        ),
+                        "action_sketch": (
+                            "Apply the selected catalog pattern conservatively and "
+                            "tune related scheduling or placement parameters."
+                        ),
+                        "preconditions": [
+                            "No semantic changes",
+                            "Preserve correctness checks",
+                        ],
+                        "parameters_to_sweep": {
+                            "variant": [1, 2]
+                        },
+                        "correctness_checks": [
+                            "Run regression tests",
+                            "Compare key outputs within tolerance",
+                        ],
+                        "performance_metrics": [
+                            "runtime",
+                            "scaling_efficiency",
+                            "omp_barrier_pct",
+                        ],
+                        "risk_level": "low",
+                        "rollback_criteria": [
+                            "Correctness failure",
+                            "Runtime regression > 3%",
+                        ],
+                    }
+                ]
+            )
 
         if "Communication & Resilience Expert" in prompt:
             pattern = _pick_pattern(
                 allowed,
-                prefer_keywords=["mpi", "message", "async", "communication", "checkpoint", "cache"],
+                prefer_keywords=[
+                    "mpi",
+                    "communication",
+                    "message",
+                    "non-blocking",
+                    "async",
+                    "asynchronous",
+                    "collective",
+                    "halo",
+                    "overlap",
+                    "checkpoint",
+                    "resilience",
+                    "latency",
+                ],
             )
-            return json.dumps([
-                {
-                    "pattern": pattern,
-                    "target": "mpi_region:exchange_halos",
-                    "rationale": "MPI / comm-related issues suspected from telemetry (mock).",
-                    "action_sketch": "Apply the selected catalog pattern conservatively; prefer template-based edits.",
-                    "preconditions": ["Preserve ordering/semantics", "Validate correctness after change"],
-                    "parameters_to_sweep": {"variant": [1, 2]},
-                    "correctness_checks": ["Run regression tests", "Compare outputs within tolerance"],
-                    "performance_metrics": ["runtime", "mpi_wait_pct", "scaling_efficiency"],
-                    "risk_level": "medium",
-                    "rollback_criteria": ["Correctness failure", "Hang/deadlock", "Runtime regression > 3%"],
-                }
-            ])
+            return json.dumps(
+                [
+                    {
+                        "pattern": pattern,
+                        "target": "mpi_region:exchange_halos",
+                        "rationale": (
+                            "Telemetry suggests communication overhead or MPI wait "
+                            "time is a likely bottleneck."
+                        ),
+                        "action_sketch": (
+                            "Apply the selected communication-oriented catalog pattern "
+                            "conservatively and validate message ordering/correctness."
+                        ),
+                        "preconditions": [
+                            "Preserve ordering/semantics",
+                            "Validate correctness after change",
+                        ],
+                        "parameters_to_sweep": {
+                            "variant": [1, 2]
+                        },
+                        "correctness_checks": [
+                            "Run regression tests",
+                            "Compare outputs within tolerance",
+                        ],
+                        "performance_metrics": [
+                            "runtime",
+                            "mpi_wait_pct",
+                            "throughput",
+                            "scaling_efficiency",
+                        ],
+                        "risk_level": "medium",
+                        "rollback_criteria": [
+                            "Correctness failure",
+                            "Hang/deadlock",
+                            "Runtime regression > 3%",
+                        ],
+                    }
+                ]
+            )
 
         if "Kernel & System Efficiency Expert" in prompt:
             pattern = _pick_pattern(
                 allowed,
-                prefer_keywords=["loop", "vector", "unroll", "locality", "math", "precision", "frequency", "power"],
+                prefer_keywords=[
+                    "cache",
+                    "memory",
+                    "locality",
+                    "prefetch",
+                    "vector",
+                    "vectorization",
+                    "simd",
+                    "loop",
+                    "tiling",
+                    "unroll",
+                    "bandwidth",
+                    "precision",
+                    "compiler",
+                ],
             )
-            return json.dumps([
-                {
-                    "pattern": pattern,
-                    "target": "kernel.c:matmul():loop_3",
-                    "rationale": "Kernel hotspot suggests local optimization could help (mock).",
-                    "action_sketch": "Apply the selected catalog pattern conservatively with small parameter sweep.",
-                    "preconditions": ["No out-of-bounds", "Validate numeric tolerance if FP changes occur"],
-                    "parameters_to_sweep": {"variant": [1, 2]},
-                    "correctness_checks": ["Run regression tests", "Numeric tolerance check"],
-                    "performance_metrics": ["runtime", "kernel_time_share"],
-                    "risk_level": "low",
-                    "rollback_criteria": ["Correctness failure", "Runtime regression > 3%"],
-                }
-            ])
+            return json.dumps(
+                [
+                    {
+                        "pattern": pattern,
+                        "target": "kernel.c:matmul():loop_3",
+                        "rationale": (
+                            "Telemetry suggests a kernel-level hotspot with likely "
+                            "memory or locality inefficiency."
+                        ),
+                        "action_sketch": (
+                            "Apply the selected catalog pattern conservatively with "
+                            "a small parameter sweep around locality or vectorization."
+                        ),
+                        "preconditions": [
+                            "No out-of-bounds accesses",
+                            "Validate numeric tolerance if floating-point behavior changes",
+                        ],
+                        "parameters_to_sweep": {
+                            "variant": [1, 2]
+                        },
+                        "correctness_checks": [
+                            "Run regression tests",
+                            "Numeric tolerance check",
+                        ],
+                        "performance_metrics": [
+                            "runtime",
+                            "cache",
+                            "memory",
+                        ],
+                        "risk_level": "low",
+                        "rollback_criteria": [
+                            "Correctness failure",
+                            "Runtime regression > 3%",
+                        ],
+                    }
+                ]
+            )
 
         return "[]"
 
@@ -126,9 +251,10 @@ class TransformersLLM:
     """
     Local Hugging Face Transformers-backed LLM client.
 
-    This preserves the same interface expected by the rest of the codebase:
-    `complete(messages) -> str`, where the returned string is raw text that
-    downstream code will parse as JSON.
+    Interface:
+        complete(messages) -> raw text
+
+    Downstream expert code is responsible for parsing and validating the JSON.
     """
 
     def __init__(
@@ -168,24 +294,29 @@ class TransformersLLM:
 
     def complete(self, messages: List[LLMMessage]) -> str:
         prompt = self._build_prompt(messages)
-
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
         prompt_len = inputs["input_ids"].shape[1]
 
         do_sample = self.temperature > 0.0
+        generate_kwargs = {
+            **inputs,
+            "max_new_tokens": self.max_new_tokens,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.pad_token_id,
+            "eos_token_id": self.tokenizer.eos_token_id,
+        }
+
+        if do_sample:
+            generate_kwargs["temperature"] = self.temperature
 
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=do_sample,
-                temperature=self.temperature if do_sample else None,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
-            )
+            outputs = self.model.generate(**generate_kwargs)
 
         generated_ids = outputs[0][prompt_len:]
-        content = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+        content = self.tokenizer.decode(
+            generated_ids,
+            skip_special_tokens=True,
+        ).strip()
 
         if not content:
             raise RuntimeError("Transformers model returned empty content.")

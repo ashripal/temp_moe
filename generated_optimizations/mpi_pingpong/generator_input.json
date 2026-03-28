@@ -10,88 +10,70 @@
   },
   "ranked_candidates": [
     {
-      "pattern": "Performance-Optimized Dependency Selection",
-      "target": "MPI runtime/library selection and version for 2-rank ping-pong",
-      "rationale": "Profiling shows communication wait dominates (MPI_Waitall/latency bottleneck); switching to a newer or better-tuned MPI stack (and enabling its transport features) can reduce latency without changing message matching semantics.",
-      "action_sketch": "Benchmark the same binary across multiple MPI implementations/versions available on the system (e.g., newer Open MPI vs newer MPICH/vendor MPI) and select the one with lowest ping-pong time; ensure consistent transport configuration (e.g., UCX/OFI provider) and rerun with identical rank/tag/comm/order.",
+      "pattern": "Non-Blocking I/O",
+      "target": "MPI ping-pong exchange loop dominated by blocking MPI_Send/MPI_Recv waits",
+      "rationale": "Profiling shows MPI_Waitall at 40% and telemetry indicates communication latency dominates; among allowed patterns, Non-Blocking I/O best matches reducing time spent blocked/waiting by converting blocking operations to non-blocking equivalents while preserving message ordering semantics.",
+      "action_sketch": "Replace the blocking send/recv pair each iteration with non-blocking MPI_Isend/MPI_Irecv posted in the same per-rank order, then complete with MPI_Waitall (or two MPI_Wait) before reusing/overwriting buf; keep the same rank/tag/communicator and iteration ordering, and ensure the receive completes before checksum/use of buf.",
       "preconditions": [
-        "Access to multiple MPI implementations/versions or ability to load different MPI modules/containers on the target cluster",
-        "Rebuild the application with each MPI (ABI compatibility not assumed) using the same compiler and optimization level",
-        "Network fabric and job launcher support the chosen MPI transport/provider"
+        "MPI implementation supports MPI_Isend/MPI_Irecv and MPI_Waitall correctly",
+        "No code path reads/writes the receive buffer before the corresponding wait completes",
+        "Per-iteration ordering (recv-before-send on rank 1; send-before-recv on rank 0) is preserved to avoid deadlock/semantic changes"
       ],
       "parameters_to_sweep": {
-        "mpi_impl_variant": [
-          1,
-          2
-        ],
-        "mpi_version_variant": [
-          1,
-          2
-        ],
-        "transport_variant": [
+        "variant": [
           1,
           2
         ]
       },
       "correctness_checks": [
-        "CHECKSUM output unchanged for same msg_size/iters across variants",
-        "No MPI errors; strict preservation of rank/tag/comm/order message matching (no code changes)",
-        "Bitwise buffer initialization pattern unchanged (sanity: checksum consistent across repeated runs within same variant)"
+        "Verify CHECKSUM matches baseline for multiple msg_size/iters values",
+        "Run with MPI message matching checks (same tag=123, ranks, communicator) and ensure no hangs",
+        "Validate that buffer is not modified between Isend/Irecv posting and completion"
       ],
       "performance_metrics": [
-        "TIME_SEC",
-        "effective_bandwidth_bytes_per_sec",
-        "per_iter_roundtrip_latency_sec"
+        "runtime"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "TIME_SEC regresses by >5% versus baseline under same placement and fabric conditions",
-        "CHECKSUM differs or any MPI runtime instability/abort occurs",
-        "Observed jitter/variance increases materially (e.g., stddev TIME_SEC >2x baseline)"
+        "TIME_SEC does not improve (or regresses) beyond run-to-run noise versus blocking baseline",
+        "Any mismatch in CHECKSUM or occurrence of hang/deadlock"
       ],
+      "catalog_score": 7,
+      "telemetry_alignment": [],
       "proposed_by": "Communication & Resilience Expert"
     }
   ],
   "selected_candidate": {
-    "pattern": "Performance-Optimized Dependency Selection",
-    "target": "MPI runtime/library selection and version for 2-rank ping-pong",
-    "rationale": "Profiling shows communication wait dominates (MPI_Waitall/latency bottleneck); switching to a newer or better-tuned MPI stack (and enabling its transport features) can reduce latency without changing message matching semantics.",
-    "action_sketch": "Benchmark the same binary across multiple MPI implementations/versions available on the system (e.g., newer Open MPI vs newer MPICH/vendor MPI) and select the one with lowest ping-pong time; ensure consistent transport configuration (e.g., UCX/OFI provider) and rerun with identical rank/tag/comm/order.",
+    "pattern": "Non-Blocking I/O",
+    "target": "MPI ping-pong exchange loop dominated by blocking MPI_Send/MPI_Recv waits",
+    "rationale": "Profiling shows MPI_Waitall at 40% and telemetry indicates communication latency dominates; among allowed patterns, Non-Blocking I/O best matches reducing time spent blocked/waiting by converting blocking operations to non-blocking equivalents while preserving message ordering semantics.",
+    "action_sketch": "Replace the blocking send/recv pair each iteration with non-blocking MPI_Isend/MPI_Irecv posted in the same per-rank order, then complete with MPI_Waitall (or two MPI_Wait) before reusing/overwriting buf; keep the same rank/tag/communicator and iteration ordering, and ensure the receive completes before checksum/use of buf.",
     "preconditions": [
-      "Access to multiple MPI implementations/versions or ability to load different MPI modules/containers on the target cluster",
-      "Rebuild the application with each MPI (ABI compatibility not assumed) using the same compiler and optimization level",
-      "Network fabric and job launcher support the chosen MPI transport/provider"
+      "MPI implementation supports MPI_Isend/MPI_Irecv and MPI_Waitall correctly",
+      "No code path reads/writes the receive buffer before the corresponding wait completes",
+      "Per-iteration ordering (recv-before-send on rank 1; send-before-recv on rank 0) is preserved to avoid deadlock/semantic changes"
     ],
     "parameters_to_sweep": {
-      "mpi_impl_variant": [
-        1,
-        2
-      ],
-      "mpi_version_variant": [
-        1,
-        2
-      ],
-      "transport_variant": [
+      "variant": [
         1,
         2
       ]
     },
     "correctness_checks": [
-      "CHECKSUM output unchanged for same msg_size/iters across variants",
-      "No MPI errors; strict preservation of rank/tag/comm/order message matching (no code changes)",
-      "Bitwise buffer initialization pattern unchanged (sanity: checksum consistent across repeated runs within same variant)"
+      "Verify CHECKSUM matches baseline for multiple msg_size/iters values",
+      "Run with MPI message matching checks (same tag=123, ranks, communicator) and ensure no hangs",
+      "Validate that buffer is not modified between Isend/Irecv posting and completion"
     ],
     "performance_metrics": [
-      "TIME_SEC",
-      "effective_bandwidth_bytes_per_sec",
-      "per_iter_roundtrip_latency_sec"
+      "runtime"
     ],
     "risk_level": "low",
     "rollback_criteria": [
-      "TIME_SEC regresses by >5% versus baseline under same placement and fabric conditions",
-      "CHECKSUM differs or any MPI runtime instability/abort occurs",
-      "Observed jitter/variance increases materially (e.g., stddev TIME_SEC >2x baseline)"
+      "TIME_SEC does not improve (or regresses) beyond run-to-run noise versus blocking baseline",
+      "Any mismatch in CHECKSUM or occurrence of hang/deadlock"
     ],
+    "catalog_score": 7,
+    "telemetry_alignment": [],
     "proposed_by": "Communication & Resilience Expert"
   },
   "ast": null,

@@ -1,16 +1,3 @@
-# Core dependencies
-jinja2==3.1.6
-pytest==9.0.2
-
-# LLM & ML dependencies
-torch>=2.0.0
-transformers>=4.30.0
-tokenizers>=0.13.0
-
-# Optional: For HuggingFace integration and backend support
-openai>=1.0.0
-
-# Utilities
 python-dotenv==1.2.2
 requests==2.32.5
 matplotlib==3.10.1

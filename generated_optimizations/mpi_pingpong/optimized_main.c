@@ -42,13 +42,17 @@ int main(int argc, char** argv) {
     double t0 = MPI_Wtime();
 
     for (int i = 0; i < iters; i++) {
+        MPI_Request reqs[2];
+
         if (rank == 0) {
-            MPI_Send(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD);
-            MPI_Recv(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Isend(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, &reqs[0]);
+            MPI_Irecv(buf, msg_size, MPI_BYTE, 1, 123, MPI_COMM_WORLD, &reqs[1]);
         } else {
-            MPI_Recv(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            MPI_Send(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD);
+            MPI_Irecv(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, &reqs[0]);
+            MPI_Isend(buf, msg_size, MPI_BYTE, 0, 123, MPI_COMM_WORLD, &reqs[1]);
         }
+
+        MPI_Waitall(2, reqs, MPI_STATUSES_IGNORE);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);

@@ -10,76 +10,104 @@
       "expert_name": "Parallelism & Job Expert",
       "candidates": [
         {
-          "pattern": "Concurrency Control / Rate Limiting",
-          "target": "OpenMP load imbalance and barrier wait in imbalanced parallel for loop",
-          "rationale": "Periodic heavy iterations cause some threads to finish later, increasing barrier wait time; using a more dynamic schedule reduces idle time without changing algorithm or data dependencies.",
-          "action_sketch": "Replace schedule(runtime) with an explicit dynamic or guided schedule (and optionally nowait if no subsequent dependence) to improve load balance: e.g., '#pragma omp parallel for reduction(+:sum) schedule(guided,chunk)' or 'schedule(dynamic,chunk)'. Optionally set OMP_SCHEDULE at runtime for quick rollback/experimentation.",
+          "pattern": "Concurrency Control / Lock Optimization",
+          "target": "OpenMP loop execution stability via thread placement/affinity",
+          "rationale": "Telemetry shows significant OpenMP barrier time (omp_barrier_pct=22%) and imbalance (omp_imbalance_ratio=1.8). The retrieved Lock Optimization pattern specifically targets OS scheduling/thread migration effects using CPU affinity/thread pinning to reduce synchronization stalls and improve consistent parallel execution.",
+          "action_sketch": "Run with explicit OpenMP affinity settings to pin threads to cores and stabilize execution: set OMP_PROC_BIND=true and test OMP_PLACES=cores (and threads if SMT), optionally use spread/close to reduce contention. Keep code unchanged and rely on runtime env vars.",
           "preconditions": [
-            "OpenMP enabled; loop iterations are independent aside from the reduction on sum"
+            "OpenMP runtime supports OMP_PROC_BIND/OMP_PLACES (OpenMP 4.0+) and job scheduler allows binding (e.g., srun/numactl/taskset not conflicting)"
           ],
           "parameters_to_sweep": {
-            "variant": [
+            "OMP_PROC_BIND": [
+              "true",
+              "false"
+            ],
+            "OMP_PLACES": [
+              "cores",
+              "threads"
+            ],
+            "bind_policy": [
+              "close",
+              "spread"
+            ],
+            "OMP_NUM_THREADS": [
               1,
               2,
               4,
               8,
-              16,
-              32,
-              64
+              16
             ]
           },
           "correctness_checks": [
-            "Compare CHECKSUM for fixed n,skew across schedules and thread counts",
-            "Verify no data races (sum is reduction, work() has no shared state)"
+            "Verify CHECKSUM output matches baseline for fixed n and skew across all affinity/binding variants"
           ],
           "performance_metrics": [
             "runtime",
             "omp_barrier_pct",
-            "omp_imbalance_ratio"
+            "omp_imbalance_ratio",
+            "scaling_efficiency",
+            "context_switches",
+            "cpu_migrations"
           ],
           "risk_level": "low",
           "rollback_criteria": [
-            "Runtime regresses >5% at target thread count",
-            "CHECKSUM changes for same n,skew"
-          ]
+            "Runtime increases or omp_barrier_pct/omp_imbalance_ratio worsen versus baseline with default binding",
+            "CHECKSUM changes for identical inputs"
+          ],
+          "catalog_score": 0,
+          "telemetry_alignment": []
         }
       ]
     }
   ],
   "final_ranked_candidates": [
     {
-      "pattern": "Concurrency Control / Rate Limiting",
-      "target": "OpenMP load imbalance and barrier wait in imbalanced parallel for loop",
-      "rationale": "Periodic heavy iterations cause some threads to finish later, increasing barrier wait time; using a more dynamic schedule reduces idle time without changing algorithm or data dependencies.",
-      "action_sketch": "Replace schedule(runtime) with an explicit dynamic or guided schedule (and optionally nowait if no subsequent dependence) to improve load balance: e.g., '#pragma omp parallel for reduction(+:sum) schedule(guided,chunk)' or 'schedule(dynamic,chunk)'. Optionally set OMP_SCHEDULE at runtime for quick rollback/experimentation.",
+      "pattern": "Concurrency Control / Lock Optimization",
+      "target": "OpenMP loop execution stability via thread placement/affinity",
+      "rationale": "Telemetry shows significant OpenMP barrier time (omp_barrier_pct=22%) and imbalance (omp_imbalance_ratio=1.8). The retrieved Lock Optimization pattern specifically targets OS scheduling/thread migration effects using CPU affinity/thread pinning to reduce synchronization stalls and improve consistent parallel execution.",
+      "action_sketch": "Run with explicit OpenMP affinity settings to pin threads to cores and stabilize execution: set OMP_PROC_BIND=true and test OMP_PLACES=cores (and threads if SMT), optionally use spread/close to reduce contention. Keep code unchanged and rely on runtime env vars.",
       "preconditions": [
-        "OpenMP enabled; loop iterations are independent aside from the reduction on sum"
+        "OpenMP runtime supports OMP_PROC_BIND/OMP_PLACES (OpenMP 4.0+) and job scheduler allows binding (e.g., srun/numactl/taskset not conflicting)"
       ],
       "parameters_to_sweep": {
-        "variant": [
+        "OMP_PROC_BIND": [
+          "true",
+          "false"
+        ],
+        "OMP_PLACES": [
+          "cores",
+          "threads"
+        ],
+        "bind_policy": [
+          "close",
+          "spread"
+        ],
+        "OMP_NUM_THREADS": [
           1,
           2,
           4,
           8,
-          16,
-          32,
-          64
+          16
         ]
       },
       "correctness_checks": [
-        "Compare CHECKSUM for fixed n,skew across schedules and thread counts",
-        "Verify no data races (sum is reduction, work() has no shared state)"
+        "Verify CHECKSUM output matches baseline for fixed n and skew across all affinity/binding variants"
       ],
       "performance_metrics": [
         "runtime",
         "omp_barrier_pct",
-        "omp_imbalance_ratio"
+        "omp_imbalance_ratio",
+        "scaling_efficiency",
+        "context_switches",
+        "cpu_migrations"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "Runtime regresses >5% at target thread count",
-        "CHECKSUM changes for same n,skew"
+        "Runtime increases or omp_barrier_pct/omp_imbalance_ratio worsen versus baseline with default binding",
+        "CHECKSUM changes for identical inputs"
       ],
+      "catalog_score": 11,
+      "telemetry_alignment": [],
       "proposed_by": "Parallelism & Job Expert"
     }
   ]

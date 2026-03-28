@@ -10,72 +10,72 @@
       "expert_name": "Kernel & System Efficiency Expert",
       "candidates": [
         {
-          "pattern": "Compiler Optimization Hints/Directives",
-          "target": "SAXPY loop vectorization and memory throughput",
-          "rationale": "Kernel is memory-bandwidth bound; ensuring aligned, non-aliasing pointers and enabling aggressive vectorization/unrolling can reduce loop overhead and improve sustained bandwidth while keeping the algorithm unchanged.",
-          "action_sketch": "Add restrict qualifiers to x/y/z pointers and use compiler hints for alignment and vectorization on the SAXPY loop (e.g., assume_aligned/ivdep/simd pragmas); build with -O3 -march=native and optionally -ffast-math or -fno-math-errno depending on tolerance policy.",
+          "pattern": "Use Smaller Data Types",
+          "target": "SAXPY arrays x/y/z and scalar a in the memory-bandwidth-bound loop",
+          "rationale": "Profiling/telemetry indicate a memory-bound SAXPY (memory_bound_score=0.85, low arithmetic intensity). Retrieved pattern evidence recommends reducing 64-bit double usage when precision allows to cut cache pressure and memory traffic, improving cache miss behavior and effective bandwidth.",
+          "action_sketch": "If numerical requirements permit, change x/y/z from double to float (and a to float), keep checksum accumulation in double to reduce validation noise; rebuild with -O3 and verify vectorization remains enabled.",
           "preconditions": [
-            "Target compiler supports alignment and SIMD/vectorization directives (e.g., GCC/Clang/ICC) and build system can pass CPU-specific flags",
-            "x, y, z are 64-byte aligned and do not alias each other (true given separate aligned_alloc calls)"
+            "Application accuracy requirements allow single precision for x/y/z (or a mixed-precision approach) within an agreed tolerance",
+            "aligned_alloc alignment remains valid for the new element size (keep 64B alignment)",
+            "No external ABI/IO contract requires double arrays"
           ],
           "parameters_to_sweep": {
             "variant": [
-              1,
-              2,
-              3,
-              4
+              32,
+              64
             ]
           },
           "correctness_checks": [
-            "Verify checksum remains within a defined numeric tolerance if enabling FP-reordering flags (e.g., abs(delta_checksum) <= 1 or relative error <= 1e-12 on s before scaling)",
-            "Run with multiple n and reps values to ensure no out-of-bounds or alignment-related crashes"
+            "Compare checksum (or L2 norm / max-abs error) against double-baseline with tolerance appropriate to float (e.g., relative error <= 1e-5 to 1e-6 depending on use case)",
+            "Ensure no NaNs/Infs introduced and results are stable across reps"
           ],
           "performance_metrics": [
             "runtime",
-            "effective_memory_bandwidth_GBps",
-            "cycles_per_element",
-            "vectorization_report_status"
+            "cache"
           ],
           "risk_level": "low",
           "rollback_criteria": [
-            "If checksum deviates beyond tolerance or performance regresses by >5% compared to baseline -O3, revert directives/flags to baseline"
-          ]
+            "If error exceeds tolerance vs double-baseline",
+            "If runtime does not improve (or regresses) due to loss of vectorization/alignment issues"
+          ],
+          "catalog_score": 0,
+          "telemetry_alignment": []
         }
       ]
     }
   ],
   "final_ranked_candidates": [
     {
-      "pattern": "Compiler Optimization Hints/Directives",
-      "target": "SAXPY loop vectorization and memory throughput",
-      "rationale": "Kernel is memory-bandwidth bound; ensuring aligned, non-aliasing pointers and enabling aggressive vectorization/unrolling can reduce loop overhead and improve sustained bandwidth while keeping the algorithm unchanged.",
-      "action_sketch": "Add restrict qualifiers to x/y/z pointers and use compiler hints for alignment and vectorization on the SAXPY loop (e.g., assume_aligned/ivdep/simd pragmas); build with -O3 -march=native and optionally -ffast-math or -fno-math-errno depending on tolerance policy.",
+      "pattern": "Use Smaller Data Types",
+      "target": "SAXPY arrays x/y/z and scalar a in the memory-bandwidth-bound loop",
+      "rationale": "Profiling/telemetry indicate a memory-bound SAXPY (memory_bound_score=0.85, low arithmetic intensity). Retrieved pattern evidence recommends reducing 64-bit double usage when precision allows to cut cache pressure and memory traffic, improving cache miss behavior and effective bandwidth.",
+      "action_sketch": "If numerical requirements permit, change x/y/z from double to float (and a to float), keep checksum accumulation in double to reduce validation noise; rebuild with -O3 and verify vectorization remains enabled.",
       "preconditions": [
-        "Target compiler supports alignment and SIMD/vectorization directives (e.g., GCC/Clang/ICC) and build system can pass CPU-specific flags",
-        "x, y, z are 64-byte aligned and do not alias each other (true given separate aligned_alloc calls)"
+        "Application accuracy requirements allow single precision for x/y/z (or a mixed-precision approach) within an agreed tolerance",
+        "aligned_alloc alignment remains valid for the new element size (keep 64B alignment)",
+        "No external ABI/IO contract requires double arrays"
       ],
       "parameters_to_sweep": {
         "variant": [
-          1,
-          2,
-          3,
-          4
+          32,
+          64
         ]
       },
       "correctness_checks": [
-        "Verify checksum remains within a defined numeric tolerance if enabling FP-reordering flags (e.g., abs(delta_checksum) <= 1 or relative error <= 1e-12 on s before scaling)",
-        "Run with multiple n and reps values to ensure no out-of-bounds or alignment-related crashes"
+        "Compare checksum (or L2 norm / max-abs error) against double-baseline with tolerance appropriate to float (e.g., relative error <= 1e-5 to 1e-6 depending on use case)",
+        "Ensure no NaNs/Infs introduced and results are stable across reps"
       ],
       "performance_metrics": [
         "runtime",
-        "effective_memory_bandwidth_GBps",
-        "cycles_per_element",
-        "vectorization_report_status"
+        "cache"
       ],
       "risk_level": "low",
       "rollback_criteria": [
-        "If checksum deviates beyond tolerance or performance regresses by >5% compared to baseline -O3, revert directives/flags to baseline"
+        "If error exceeds tolerance vs double-baseline",
+        "If runtime does not improve (or regresses) due to loss of vectorization/alignment issues"
       ],
+      "catalog_score": 10,
+      "telemetry_alignment": [],
       "proposed_by": "Kernel & System Efficiency Expert"
     }
   ]

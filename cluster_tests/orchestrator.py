@@ -14,7 +14,7 @@ parser.add_argument("--runs",           type=int,   default=5,                he
 args = parser.parse_args()
 
 # --- CONFIGURATION ---
-KERNELS         = ["linear-algebra/kernels/gemm", "stencils/jacobi-2d"]
+KERNELS         = ["kernels/linear-algebra/blas/gemm/gemm", "kernels/stencils/jacobi-2d"]
 DATASET_SIZE    = f"{args.dataset}_DATASET"   # e.g. "EXTRALARGE_DATASET"
 NODES           = args.nodes
 TASKS_PER_NODE  = args.tasks_per_node
@@ -46,8 +46,8 @@ def compile_kernel(file_path, output_binary, extra_flags=None):
         "mpicc",            # MPI-aware compiler wrapper (replaces gcc)
         "-O3",
         "-fopenmp",         # Enable OpenMP for hybrid parallelism
-        "-I", "utilities/",
-        "utilities/polybench.c",
+        "-I", "kernels/utilities/",
+        "kernels/utilities/polybench.c",
         file_path,
         f"-D{DATASET_SIZE}",
         "-lm",
@@ -92,14 +92,14 @@ def run_benchmark(kernel_name, file_path, baseline_output_path=None, runs=RUNS):
 
     result = subprocess.run(
         [f"./{verify_binary}"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE       # DUMP_ARRAYS writes to stderr
     )
     if result.returncode != 0:
         raise RuntimeError(f"Verification binary failed to run for {kernel_name}")
 
     with open(output_file, "wb") as f:
-        f.write(result.stdout)
+        f.write(result.stderr)
 
     # --- Step 2: Verify correctness against baseline (if provided) ---
     if baseline_output_path is not None:

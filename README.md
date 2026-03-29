@@ -1,4 +1,4 @@
-# temp_moe - Mixture of Experts HPC Performance Advisor
+# OptimizeHPC - Mixture of Experts HPC Performance Advisor
 
 A Python implementation of a Mixture of Experts (MoE) system for HPC performance optimization recommendations. The system leverages specialized expert agents to provide targeted optimization suggestions based on performance telemetry.
 

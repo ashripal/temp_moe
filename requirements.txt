@@ -1,3 +1,7 @@
 python-dotenv==1.2.2
 requests==2.32.5
 matplotlib==3.10.1
+openai
+jinja2
+transformers
+torch

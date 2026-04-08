@@ -17,6 +17,7 @@ set -euo pipefail
 export BASE_SCRATCH=/local/scratch/a/rcalvome
 export WORKDIR="$BASE_SCRATCH/temp_moe"
 export VENV_DIR="$WORKDIR/.venv"
+export OPENAI_API_KEY="your_api_key_here"
 
 echo "Running on node: $(hostname)"
 echo "Job start: $(date)"
@@ -50,7 +51,13 @@ python3 --version
 echo "Workdir: $(pwd)"
 echo
 
-python3 cluster_tests/orchestrator.py --nodes 3 --tasks-per-node 1 --cpus 30 --dataset EXTRALARGE
+python3 cluster_tests/orchestrator.py \
+  --nodes 1 \
+  --tasks-per-node 1 \
+  --cpus 4 \
+  --dataset LARGE \
+  --runs 2 \
+  --kernels kernels/linear-algebra/blas/gemm/gemm
 
 echo
 echo "Job end: $(date)"

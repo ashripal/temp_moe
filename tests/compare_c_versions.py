@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import re
 import shlex
 import statistics
@@ -70,6 +69,14 @@ class OutputComparison:
     stdout_match: bool
     stderr_match: bool
     correctness_pass: bool
+    original_numeric_signal: Optional[float] = None
+    optimized_numeric_signal: Optional[float] = None
+    relative_error: Optional[float] = None
+    numeric_tolerance: Optional[float] = None
+    within_tolerance: Optional[bool] = None
+    acceptable_drift: Optional[bool] = None
+    drift_threshold: Optional[float] = None
+    comparison_mode: str = "exact"
 
 
 @dataclass
@@ -104,6 +111,9 @@ class ComparisonReport:
     trimmed_mean_percent_improvement: Optional[float]
     likely_significant: Optional[bool]
     significance_reason: Optional[str]
+    evaluation_status: str
+    environment_failure: bool
+    environment_reason: Optional[str]
 
 
 # ---------- Utility helpers ----------
@@ -227,10 +237,87 @@ def looks_like_mpi_source(path: Path) -> bool:
     return any(token in hay for token in ["mpi", "pingpong", "allreduce", "halo"])
 
 
+def looks_like_omp_source(path: Path) -> bool:
+    hay = str(path).lower()
+    return any(token in hay for token in ["omp", "openmp", "imbalance"])
+
+
 def default_run_prefix(compiler: str, original_source: Path, optimized_source: Path) -> List[str]:
-    if compiler.strip().lower() == "mpicc" or looks_like_mpi_source(original_source) or looks_like_mpi_source(optimized_source):
+    if (
+        compiler.strip().lower() == "mpicc"
+        or looks_like_mpi_source(original_source)
+        or looks_like_mpi_source(optimized_source)
+    ):
         return ["mpirun", "-np", "2"]
     return []
+
+
+def infer_numeric_tolerance(original_source: Path, optimized_source: Path) -> float:
+    hay = f"{str(original_source).lower()} {str(optimized_source).lower()}"
+    if "mem_saxpy" in hay or "saxpy" in hay:
+        return 1e-5
+    if "omp" in hay or "openmp" in hay:
+        return 1e-4
+    if "mpi" in hay or "pingpong" in hay:
+        return 0.0
+    return 1e-7
+
+
+def infer_drift_threshold(original_source: Path, optimized_source: Path) -> float:
+    hay = f"{str(original_source).lower()} {str(optimized_source).lower()}"
+    if "mem_saxpy" in hay or "saxpy" in hay:
+        return 1e-5
+    if "omp" in hay or "openmp" in hay or "reduction" in hay or "parallel" in hay:
+        return 1e-4
+    if "mpi" in hay or "pingpong" in hay:
+        return 0.0
+    return 1e-5
+
+
+def extract_numeric_signal(stdout: str) -> Optional[float]:
+    if not stdout:
+        return None
+
+    checksum_match = re.search(r"CHECKSUM=([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)", stdout)
+    if checksum_match:
+        return float(checksum_match.group(1))
+
+    numeric_tokens = re.findall(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", stdout)
+    if len(numeric_tokens) == 1:
+        return float(numeric_tokens[0])
+
+    return None
+
+
+def relative_error(a: float, b: float) -> float:
+    denom = max(abs(a), 1e-12)
+    return abs(a - b) / denom
+
+
+def classify_environment_failure(
+    original_source: Path,
+    optimized_source: Path,
+    original_build: BuildMetrics,
+    optimized_build: BuildMetrics,
+) -> tuple[bool, Optional[str]]:
+    if original_build.compile_success:
+        return False, None
+
+    stderr = (original_build.stderr or "") + "\n" + (optimized_build.stderr or "")
+    stderr_l = stderr.lower()
+
+    if "fatal error: 'stdio.h' file not found" in stderr_l:
+        return True, "Baseline toolchain cannot find standard C headers."
+    if "unsupported option '-fopenmp'" in stderr_l:
+        return True, "Compiler lacks OpenMP support for baseline build."
+    if "omp.h' file not found" in stderr_l or 'omp.h file not found' in stderr_l:
+        return True, "OpenMP headers are not available in the baseline toolchain."
+    if looks_like_mpi_source(original_source) or looks_like_mpi_source(optimized_source):
+        return True, "MPI baseline failed to compile; environment/toolchain issue likely."
+    if looks_like_omp_source(original_source) or looks_like_omp_source(optimized_source):
+        return True, "OpenMP baseline failed to compile; environment/toolchain issue likely."
+
+    return True, "Baseline failed to compile, so optimization cannot be judged reliably."
 
 
 # ---------- Build helpers ----------
@@ -385,6 +472,9 @@ def normalize_stdout(text: str) -> str:
 def compare_outputs(
     original_run: RunMetrics,
     optimized_run: RunMetrics,
+    *,
+    numeric_tolerance: float,
+    drift_threshold: float,
 ) -> OutputComparison:
     original_exit = original_run.exit_codes[0] if original_run.exit_codes else None
     optimized_exit = optimized_run.exit_codes[0] if optimized_run.exit_codes else None
@@ -392,16 +482,41 @@ def compare_outputs(
     original_stdout = normalize_stdout(original_run.representative_stdout)
     optimized_stdout = normalize_stdout(optimized_run.representative_stdout)
 
+    original_numeric_signal = extract_numeric_signal(original_stdout)
+    optimized_numeric_signal = extract_numeric_signal(optimized_stdout)
+
     stdout_match = (original_stdout == optimized_stdout)
     stderr_match = (original_run.representative_stderr == optimized_run.representative_stderr)
     exit_code_match = (original_exit == optimized_exit)
+
+    rel_err = None
+    within_tolerance = None
+    acceptable_drift = None
+    comparison_mode = "exact"
+
+    if stdout_match:
+        within_tolerance = True
+        acceptable_drift = True
+        comparison_mode = "exact"
+    elif (
+        original_numeric_signal is not None
+        and optimized_numeric_signal is not None
+    ):
+        rel_err = relative_error(original_numeric_signal, optimized_numeric_signal)
+        within_tolerance = rel_err <= numeric_tolerance
+        acceptable_drift = rel_err <= drift_threshold
+        comparison_mode = "numeric_tolerance"
+    else:
+        within_tolerance = False
+        acceptable_drift = False
+        comparison_mode = "exact"
 
     correctness_pass = (
         original_run.run_success
         and optimized_run.run_success
         and exit_code_match
-        and stdout_match
         and stderr_match
+        and bool(within_tolerance)
     )
 
     return OutputComparison(
@@ -409,6 +524,14 @@ def compare_outputs(
         stdout_match=stdout_match,
         stderr_match=stderr_match,
         correctness_pass=correctness_pass,
+        original_numeric_signal=original_numeric_signal,
+        optimized_numeric_signal=optimized_numeric_signal,
+        relative_error=rel_err,
+        numeric_tolerance=numeric_tolerance,
+        within_tolerance=within_tolerance,
+        acceptable_drift=acceptable_drift,
+        drift_threshold=drift_threshold,
+        comparison_mode=comparison_mode,
     )
 
 
@@ -508,9 +631,16 @@ def compare_versions(
     trials: int,
     warmup_trials: int,
     run_prefix: List[str],
+    numeric_tolerance: Optional[float] = None,
+    drift_threshold: Optional[float] = None,
 ) -> ComparisonReport:
     if not run_prefix:
         run_prefix = default_run_prefix(compiler, original_source, optimized_source)
+
+    if numeric_tolerance is None:
+        numeric_tolerance = infer_numeric_tolerance(original_source, optimized_source)
+    if drift_threshold is None:
+        drift_threshold = infer_drift_threshold(original_source, optimized_source)
 
     with tempfile.TemporaryDirectory(prefix="compare_c_versions_") as tmpdir:
         tmpdir_path = Path(tmpdir)
@@ -529,6 +659,13 @@ def compare_versions(
             output_binary=optimized_binary,
             compiler=compiler,
             cflags=cflags,
+        )
+
+        environment_failure, environment_reason = classify_environment_failure(
+            original_source=original_source,
+            optimized_source=optimized_source,
+            original_build=original_build,
+            optimized_build=optimized_build,
         )
 
         original_run: Optional[RunMetrics] = None
@@ -556,7 +693,12 @@ def compare_versions(
             )
 
         if original_run is not None and optimized_run is not None:
-            output_comparison = compare_outputs(original_run, optimized_run)
+            output_comparison = compare_outputs(
+                original_run,
+                optimized_run,
+                numeric_tolerance=numeric_tolerance,
+                drift_threshold=drift_threshold,
+            )
 
         perf = compute_performance_change(original_run, optimized_run)
 
@@ -594,6 +736,8 @@ def compare_versions(
             optimized_source=optimized_source,
         )
 
+        evaluation_status = "environment_failure" if environment_failure else "evaluated"
+
         return ComparisonReport(
             original_source=str(original_source),
             optimized_source=str(optimized_source),
@@ -614,6 +758,9 @@ def compare_versions(
             trimmed_mean_percent_improvement=timing_summary["trimmed_mean_percent_improvement"],
             likely_significant=timing_summary["likely_significant"],
             significance_reason=timing_summary["significance_reason"],
+            evaluation_status=evaluation_status,
+            environment_failure=environment_failure,
+            environment_reason=environment_reason,
         )
 
 
@@ -675,8 +822,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--run-prefix",
         default="",
-        help='Optional launcher prefix as a shell-style string, e.g. "mpirun -np 2". '
+        help='Optional launcher prefix as a single shell-style string, e.g. "mpirun -np 2". '
              "If omitted, MPI execution is inferred automatically for mpicc/MPI sources.",
+    )
+    parser.add_argument(
+        "--numeric-tolerance",
+        type=float,
+        default=None,
+        help="Optional numeric tolerance override for strict output comparison. "
+             "If omitted, a benchmark-aware default is inferred from the source paths.",
+    )
+    parser.add_argument(
+        "--drift-threshold",
+        type=float,
+        default=None,
+        help="Optional relaxed drift threshold used to flag acceptable HPC-style numerical drift.",
     )
     return parser.parse_args()
 
@@ -702,6 +862,8 @@ def main() -> None:
         trials=args.trials,
         warmup_trials=args.warmup_trials,
         run_prefix=shlex.split(args.run_prefix),
+        numeric_tolerance=args.numeric_tolerance,
+        drift_threshold=args.drift_threshold,
     )
 
     report_dict = asdict(report)

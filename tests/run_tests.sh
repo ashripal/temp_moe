@@ -235,6 +235,31 @@ hard_gates = {
     "stderr_match": stderr_match,
 }
 
+def telemetry_pattern_alignment(bench_name: str, pattern_hint: str = "") -> bool:
+    # In shell fallback mode we usually do not have generator_result pattern text,
+    # so use benchmark-family defaults as a conservative approximation.
+    pattern_hint = (pattern_hint or "").lower()
+
+    if bench_name == "mem_saxpy":
+        if not pattern_hint:
+            return True
+        return any(k in pattern_hint for k in ["smaller data", "precision", "type", "memory", "locality", "vector"])
+
+    if bench_name == "omp_imbalance":
+        if not pattern_hint:
+            return True
+        return any(k in pattern_hint for k in ["schedule", "load", "imbalance", "parallel", "openmp", "chunk"])
+
+    if bench_name == "mpi_pingpong":
+        if not pattern_hint:
+            return True
+        return any(k in pattern_hint for k in ["mpi", "communication", "async", "message", "overlap"])
+
+    return True
+
+candidate_faithful = compile_pass and run_pass and percent_file_changed <= 70.0
+telemetry_aligned = telemetry_pattern_alignment(bench_name)
+
 if environment_failure or evaluation_status == "environment_failure":
     rubric = {
         "benchmark": bench_name,
@@ -268,6 +293,10 @@ if environment_failure or evaluation_status == "environment_failure":
         "decision": {
             "action": "environment_failure",
             "reason": environment_reason or "Baseline failed to compile or run, so the optimization cannot be judged reliably.",
+        },
+        "diagnostics": {
+            "candidate_faithful": candidate_faithful,
+            "telemetry_pattern_aligned": telemetry_aligned,
         },
     }
     rubric_path.write_text(json.dumps(rubric, indent=2), encoding="utf-8")
@@ -330,15 +359,44 @@ total = correctness_safety + optimization_faithfulness + hpc_applicability + rep
 if not compile_pass:
     action = "repair_once"
     reason = "Optimized candidate failed to compile while baseline evaluation was valid."
+
 elif not run_pass or not timeout_free or not crash_free:
     action = "repair_once"
     reason = "Optimized candidate compiled but failed during execution, timed out, or crashed."
+
 elif correctness_pass and total >= 75:
     action = "accept"
     reason = "Passed deterministic checks with strong rubric score."
+
 elif acceptable_drift and percent_improvement is not None and percent_improvement >= 5.0:
     action = "accept_with_warning"
     reason = "Accepted with warning: strong performance gain with acceptable HPC-style numerical drift."
+
+elif (
+    candidate_faithful
+    and correctness_pass
+    and percent_improvement is not None
+    and percent_improvement <= 5.0
+    and not telemetry_aligned
+):
+    action = "reconsider_advisor"
+    reason = (
+        "Generated code appears faithful and correct, but the selected optimization "
+        "strategy seems weakly aligned with the apparent bottleneck and produced limited gain."
+    )
+
+elif (
+    candidate_faithful
+    and (correctness_pass or acceptable_drift)
+    and percent_improvement is not None
+    and percent_improvement <= 0.0
+):
+    action = "reconsider_advisor"
+    reason = (
+        "Generated code appears faithful and executable, but performance did not improve. "
+        "This suggests the selected optimization strategy may be mismatched."
+    )
+
 elif not correctness_pass and not acceptable_drift:
     if total >= 45:
         action = "repair_once"
@@ -346,12 +404,15 @@ elif not correctness_pass and not acceptable_drift:
     else:
         action = "reject"
         reason = "Correctness deviation is too large and the overall result is too weak for repair."
+
 elif total >= 75:
     action = "accept"
     reason = "Accepted based on rubric score."
+
 elif total >= 45:
     action = "repair_once"
     reason = "Moderate result; one repair attempt justified."
+
 else:
     action = "reject"
     reason = "Low rubric score or non-repairable result."
@@ -388,6 +449,10 @@ rubric = {
     "decision": {
         "action": action,
         "reason": reason,
+    },
+    "diagnostics": {
+        "candidate_faithful": candidate_faithful,
+        "telemetry_pattern_aligned": telemetry_aligned,
     },
 }
 rubric_path.write_text(json.dumps(rubric, indent=2), encoding="utf-8")

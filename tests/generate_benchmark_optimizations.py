@@ -3,10 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
-import shlex
 import sys
-from dataclasses import asdict, fields, is_dataclass, replace
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -20,11 +18,16 @@ if str(REPO_ROOT) not in sys.path:
 
 from implementation.advisor import MoEAdvisor
 from implementation.generator import CodeGenerator
-from implementation.generator.generator_schema import GeneratorInput, GeneratorResult
+from implementation.generator.generator_schema import (
+    EvaluationFeedback,
+    GeneratorInput,
+    GeneratorResult,
+)
 from implementation.kb import KnowledgeBase
 from implementation.llm import LLMClient, LLMMessage
 
 from compare_c_versions import compare_versions
+from rubric_evaluator import evaluate_with_rubric
 
 
 class OpenAIExpertLLM(LLMClient):
@@ -130,7 +133,9 @@ class OpenAIGeneratorBackend:
                 model=self.model_name,
                 instructions=(
                     "You are an expert HPC code optimization generator. "
-                    "Return exactly one valid JSON object and nothing else."
+                    "Return exactly one valid JSON object and nothing else. "
+                    "Do not output markdown fences, prose outside the JSON object, or diffs. "
+                    "The JSON must contain complete source code in the final_code field."
                 ),
                 input=prompt,
             )
@@ -243,16 +248,29 @@ def benchmark_compare_config(benchmark_name: str) -> Dict[str, Any]:
             "warmup_trials": 2,
             "run_prefix": ["mpirun", "-np", "2"],
         }
+
     if benchmark_name == "omp_imbalance":
+        libomp_prefix = Path(os.popen("brew --prefix libomp 2>/dev/null").read().strip())
+        cflags = ["-O3", "-Xpreprocessor", "-fopenmp"]
+        if str(libomp_prefix):
+            cflags += [
+                f"-I{libomp_prefix / 'include'}",
+                f"-L{libomp_prefix / 'lib'}",
+                "-lomp",
+            ]
+        else:
+            cflags += ["-fopenmp"]
+
         return {
             "compiler": "cc",
-            "cflags": ["-O3", "-fopenmp"],
+            "cflags": cflags,
             "program_args": [],
             "timeout_seconds": 20.0,
             "trials": 10,
             "warmup_trials": 2,
             "run_prefix": [],
         }
+
     return {
         "compiler": "cc",
         "cflags": ["-O3"],
@@ -268,222 +286,13 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def extract_numeric_signal(stdout_text: str) -> Optional[float]:
-    """
-    Prefer CHECKSUM=... but also allow a generic single numeric token fallback.
-    """
-    if not stdout_text:
-        return None
-
-    checksum_match = re.search(r"CHECKSUM=([-+]?\d+(?:\.\d+)?)", stdout_text)
-    if checksum_match:
-        return float(checksum_match.group(1))
-
-    numeric_tokens = re.findall(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", stdout_text)
-    if len(numeric_tokens) == 1:
-        return float(numeric_tokens[0])
-
-    return None
-
-
-def relative_error(a: float, b: float) -> float:
-    denom = max(abs(a), 1e-12)
-    return abs(a - b) / denom
-
-
-def compute_numeric_correctness(
-    benchmark_name: str,
-    comparison_report: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    HPC-aware correctness:
-    - exact match passes
-    - otherwise, if representative stdouts contain comparable numeric signals,
-      accept within tolerance
-    """
-    output_cmp = comparison_report.get("output_comparison") or {}
-    original_run = comparison_report.get("original_run") or {}
-    optimized_run = comparison_report.get("optimized_run") or {}
-
-    original_stdout = original_run.get("representative_stdout", "")
-    optimized_stdout = optimized_run.get("representative_stdout", "")
-
-    original_value = extract_numeric_signal(original_stdout)
-    optimized_value = extract_numeric_signal(optimized_stdout)
-
-    tolerance = 0.0
-    if benchmark_name == "mem_saxpy":
-        tolerance = 1e-5
-    elif benchmark_name == "omp_imbalance":
-        tolerance = 1e-7
-    elif benchmark_name == "mpi_pingpong":
-        tolerance = 0.0
-
-    rel_err = None
-    within_tolerance = False
-
-    if original_value is not None and optimized_value is not None:
-        rel_err = relative_error(original_value, optimized_value)
-        within_tolerance = rel_err <= tolerance
-
-    exact_pass = bool(output_cmp.get("stdout_match", False))
-    final_pass = bool(
-        output_cmp.get("exit_code_match", False)
-        and output_cmp.get("stderr_match", False)
-        and (exact_pass or within_tolerance)
-    )
-
-    return {
-        "original_value": original_value,
-        "optimized_value": optimized_value,
-        "relative_error": rel_err,
-        "tolerance": tolerance,
-        "within_tolerance": within_tolerance,
-        "exact_stdout_match": exact_pass,
-        "final_pass": final_pass,
-    }
-
-
-def evaluate_with_rubric(
-    benchmark_name: str,
-    generator_result: GeneratorResult,
-    comparison_report: Dict[str, Any],
-) -> Dict[str, Any]:
-    """
-    Deterministic rubric:
-    - hard gates first
-    - then weighted scoring
-    - repair_once at most once
-    """
-    optimized_build = comparison_report.get("optimized_build") or {}
-    optimized_run = comparison_report.get("optimized_run") or {}
-    diff_metrics = comparison_report.get("diff_metrics") or {}
-    output_cmp = comparison_report.get("output_comparison") or {}
-
-    numeric = compute_numeric_correctness(benchmark_name, comparison_report)
-
-    hard_gates = {
-        "generation_succeeded": bool(generator_result.generation_succeeded),
-        "compile_pass": bool(optimized_build.get("compile_success", False)),
-        "run_pass": bool(optimized_run.get("run_success", False)),
-        "timeout_free": int(optimized_run.get("timeout_count", 0)) == 0,
-        "crash_free": int(optimized_run.get("crash_count", 0)) == 0,
-        "exit_code_match": bool(output_cmp.get("exit_code_match", False)),
-        "stderr_match": bool(output_cmp.get("stderr_match", False)),
-    }
-
-    correctness_safety = 0
-    correctness_safety += 15 if hard_gates["compile_pass"] else 0
-
-    if numeric["final_pass"]:
-        correctness_safety += 15 if numeric["exact_stdout_match"] else 12
-    else:
-        correctness_safety += 0
-
-    percent_file_changed = float(diff_metrics.get("percent_file_changed", 100.0))
-    if percent_file_changed <= 35.0:
-        correctness_safety += 10
-    elif percent_file_changed <= 70.0:
-        correctness_safety += 5
-
-    optimization_faithfulness = 0
-    if getattr(generator_result, "selected_candidate_pattern", None):
-        optimization_faithfulness += 10
-    if getattr(generator_result, "selected_candidate_target", None):
-        optimization_faithfulness += 10
-    if percent_file_changed <= 35.0:
-        optimization_faithfulness += 5
-    elif percent_file_changed <= 70.0:
-        optimization_faithfulness += 2
-
-    hpc_applicability = 0
-    selected_pattern = (getattr(generator_result, "selected_candidate_pattern", "") or "").lower()
-    expected_improvement = comparison_report.get("percent_improvement")
-
-    if benchmark_name == "mem_saxpy":
-        if any(k in selected_pattern for k in ["smaller data", "precision", "type", "memory", "locality"]):
-            hpc_applicability += 10
-        else:
-            hpc_applicability += 5
-    elif benchmark_name == "omp_imbalance":
-        if any(k in selected_pattern for k in ["schedule", "load", "imbalance", "openmp", "parallel"]):
-            hpc_applicability += 10
-        else:
-            hpc_applicability += 5
-    elif benchmark_name == "mpi_pingpong":
-        if any(k in selected_pattern for k in ["mpi", "communication", "async", "message"]):
-            hpc_applicability += 10
-        else:
-            hpc_applicability += 5
-    else:
-        hpc_applicability += 5
-
-    if hard_gates["run_pass"] and hard_gates["timeout_free"] and hard_gates["crash_free"]:
-        hpc_applicability += 10
-
-    if expected_improvement is not None:
-        if expected_improvement >= 5.0:
-            hpc_applicability += 5
-        elif expected_improvement > 0.0:
-            hpc_applicability += 2
-
-    repairability = 0
-    if hard_gates["compile_pass"] and not numeric["final_pass"]:
-        repairability += 5
-    if percent_file_changed <= 70.0:
-        repairability += 5
-
-    total = correctness_safety + optimization_faithfulness + hpc_applicability + repairability
-
-    hard_fail = not all(
-        [
-            hard_gates["generation_succeeded"],
-            hard_gates["compile_pass"],
-            hard_gates["run_pass"],
-            hard_gates["timeout_free"],
-            hard_gates["crash_free"],
-            hard_gates["exit_code_match"],
-            hard_gates["stderr_match"],
-        ]
-    )
-
-    if hard_fail:
-        action = "repair_once"
-        reason = "Hard gate failed but may be repairable."
-    elif numeric["final_pass"] and total >= 75:
-        action = "accept"
-        reason = "Passed deterministic checks with strong rubric score."
-    elif total >= 45:
-        action = "repair_once"
-        reason = "Localized or moderate-quality result; one repair attempt justified."
-    else:
-        action = "reject"
-        reason = "Low rubric score or non-repairable result."
-
-    return {
-        "hard_gates": hard_gates,
-        "numeric_correctness": numeric,
-        "rubric": {
-            "correctness_safety": correctness_safety,
-            "optimization_faithfulness": optimization_faithfulness,
-            "hpc_applicability": hpc_applicability,
-            "repairability": repairability,
-            "total": total,
-        },
-        "decision": {
-            "action": action,
-            "reason": reason,
-        },
-    }
-
-
 def build_repair_feedback(
     benchmark_name: str,
     generator_result: GeneratorResult,
     comparison_report: Dict[str, Any],
     evaluation: Dict[str, Any],
 ) -> str:
-    numeric = evaluation["numeric_correctness"]
+    numeric = evaluation.get("numeric_correctness") or {}
     diff_metrics = comparison_report.get("diff_metrics") or {}
     optimized_build = comparison_report.get("optimized_build") or {}
     optimized_run = comparison_report.get("optimized_run") or {}
@@ -510,10 +319,10 @@ def build_repair_feedback(
         if rep_stderr:
             lines.append(f"Runtime stderr:\n{rep_stderr}")
 
-    if numeric["relative_error"] is not None and not numeric["within_tolerance"]:
+    if numeric.get("relative_error") is not None and not numeric.get("within_tolerance", False):
         lines.append(
-            f"Output deviated beyond tolerance: relative_error={numeric['relative_error']}, "
-            f"tolerance={numeric['tolerance']}."
+            f"Output deviated beyond tolerance: relative_error={numeric.get('relative_error')}, "
+            f"tolerance={numeric.get('numeric_tolerance')}."
         )
 
     if float(diff_metrics.get("percent_file_changed", 0.0)) > 70.0:
@@ -524,21 +333,6 @@ def build_repair_feedback(
 
     lines.append("Return a single corrected optimized file only in the required schema.")
     return "\n".join(lines)
-
-
-def maybe_add_feedback(generator_input: GeneratorInput, feedback_text: str) -> Optional[GeneratorInput]:
-    """
-    Best-effort feedback injection without assuming a specific GeneratorInput field name.
-    """
-    if not is_dataclass(generator_input):
-        return None
-
-    valid_field_names = {f.name for f in fields(generator_input)}
-    for candidate_name in ("feedback_text", "feedback", "review_feedback", "verifier_feedback"):
-        if candidate_name in valid_field_names:
-            return replace(generator_input, **{candidate_name: feedback_text})
-
-    return None
 
 
 def advisor_result_to_json(advisor_result: Any) -> Dict[str, Any]:
@@ -577,7 +371,6 @@ def run_single_generation_attempt(
 
     comparison_report_dict = asdict(comparison_report)
     evaluation = evaluate_with_rubric(
-        benchmark_name=benchmark_name,
         generator_result=generator_result,
         comparison_report=comparison_report_dict,
     )
@@ -588,6 +381,71 @@ def run_single_generation_attempt(
         "evaluation": evaluation,
         "optimized_code_path": optimized_code_path,
     }
+
+
+def should_promote_attempt(
+    current_best: Dict[str, Any],
+    candidate_attempt: Dict[str, Any],
+) -> bool:
+    current_eval = current_best["evaluation"]
+    candidate_eval = candidate_attempt["evaluation"]
+
+    current_action = current_eval["decision"]["action"]
+    candidate_action = candidate_eval["decision"]["action"]
+
+    priority = {
+        "accept": 5,
+        "accept_with_warning": 4,
+        "repair_once": 3,
+        "reconsider_advisor": 2,
+        "reject": 1,
+        "environment_failure": 0,
+    }
+
+    current_score = int(current_eval.get("rubric", {}).get("total", 0))
+    candidate_score = int(candidate_eval.get("rubric", {}).get("total", 0))
+
+    if priority.get(candidate_action, -1) > priority.get(current_action, -1):
+        return True
+    if priority.get(candidate_action, -1) < priority.get(current_action, -1):
+        return False
+
+    return candidate_score >= current_score
+
+
+def choose_next_candidate_input(
+    generator: CodeGenerator,
+    advisor_result: Any,
+    original_code: str,
+    bench_meta: Dict[str, Any],
+    current_input: GeneratorInput,
+) -> Optional[GeneratorInput]:
+    ranked = advisor_result.final_ranked_candidates or []
+    current_selected = current_input.selected_candidate or {}
+    current_pattern = str(current_selected.get("pattern", ""))
+    current_target = str(current_selected.get("target", ""))
+
+    for idx, candidate in enumerate(ranked):
+        if not isinstance(candidate, dict):
+            continue
+        if (
+            str(candidate.get("pattern", "")) == current_pattern
+            and str(candidate.get("target", "")) == current_target
+        ):
+            continue
+
+        return generator.from_advisor_result(
+            advisor_result=advisor_result,
+            original_code=original_code,
+            profiling_summary=bench_meta["profiling_summary"],
+            telemetry_summary=bench_meta["telemetry_summary"],
+            telemetry_struct=bench_meta["telemetry_struct"],
+            ast=None,
+            flame_report=None,
+            selected_candidate_index=idx,
+        )
+
+    return None
 
 
 def parse_args() -> argparse.Namespace:
@@ -641,7 +499,14 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         choices=[0, 1],
-        help="Bounded repair loop. Use 0 to disable repair, 1 for at most one repair.",
+        help="Bounded generator repair loop. Use 0 to disable repair, 1 for at most one repair.",
+    )
+    parser.add_argument(
+        "--max-advisor-reconsiderations",
+        type=int,
+        default=1,
+        choices=[0, 1],
+        help="Bounded advisor reconsideration loop. Use 0 to disable, 1 to try at most one alternate ranked candidate.",
     )
     return parser.parse_args()
 
@@ -733,6 +598,7 @@ def main() -> None:
 
             final_attempt = first_attempt
             repair_attempt = None
+            advisor_reconsider_attempt = None
 
             first_decision = first_attempt["evaluation"]["decision"]["action"]
 
@@ -743,38 +609,90 @@ def main() -> None:
                     comparison_report=first_attempt["comparison_report"],
                     evaluation=first_attempt["evaluation"],
                 )
+                structured_feedback = EvaluationFeedback.from_rubric_result(first_attempt["evaluation"])
 
-                repaired_input = maybe_add_feedback(generator_input, feedback_text)
+                repair_attempt_result = generator.retry_with_feedback(
+                    previous_input=generator_input,
+                    evaluator_feedback=feedback_text,
+                    evaluation_feedback=structured_feedback,
+                )
 
-                if repaired_input is not None:
-                    repair_attempt = run_single_generation_attempt(
+                repair_attempt = {
+                    "generator_result": repair_attempt_result,
+                    "optimized_code_path": bench_output_dir / "optimized_main_repair.c",
+                }
+                repair_attempt["optimized_code_path"].write_text(
+                    repair_attempt_result.final_code,
+                    encoding="utf-8",
+                )
+
+                comparison_report = compare_versions(
+                    original_source=bench_dir / "main.c",
+                    optimized_source=repair_attempt["optimized_code_path"],
+                    compiler=compare_cfg["compiler"],
+                    cflags=compare_cfg["cflags"],
+                    program_args=compare_cfg["program_args"],
+                    timeout_seconds=compare_cfg["timeout_seconds"],
+                    trials=compare_cfg["trials"],
+                    warmup_trials=compare_cfg["warmup_trials"],
+                    run_prefix=compare_cfg["run_prefix"],
+                )
+                repair_attempt["comparison_report"] = asdict(comparison_report)
+                repair_attempt["evaluation"] = evaluate_with_rubric(
+                    generator_result=repair_attempt_result,
+                    comparison_report=repair_attempt["comparison_report"],
+                )
+
+                if should_promote_attempt(final_attempt, repair_attempt):
+                    final_attempt = repair_attempt
+
+                write_json(bench_output_dir / "repair_input_feedback.json", {"feedback_text": feedback_text})
+                write_json(bench_output_dir / "generator_result_repair.json", repair_attempt_result.to_dict())
+                write_json(bench_output_dir / "tester_result_repair.json", repair_attempt["comparison_report"])
+                write_json(bench_output_dir / "rubric_result_repair.json", repair_attempt["evaluation"])
+
+            current_decision = final_attempt["evaluation"]["decision"]["action"]
+
+            if current_decision == "reconsider_advisor" and args.max_advisor_reconsiderations == 1:
+                alternate_input = choose_next_candidate_input(
+                    generator=generator,
+                    advisor_result=advisor_result,
+                    original_code=code_text,
+                    bench_meta=bench_meta,
+                    current_input=generator_input,
+                )
+
+                if alternate_input is not None:
+                    advisor_reconsider_attempt = run_single_generation_attempt(
                         benchmark_name=bench_name,
                         bench_dir=bench_dir,
                         output_dir=bench_output_dir,
                         generator=generator,
-                        generator_input=repaired_input,
+                        generator_input=alternate_input,
                         compare_cfg=compare_cfg,
-                        file_stem="optimized_main_repair",
+                        file_stem="optimized_main_advisor_retry",
                     )
 
-                    repaired_action = repair_attempt["evaluation"]["decision"]["action"]
-                    repaired_total = repair_attempt["evaluation"]["rubric"]["total"]
-                    first_total = first_attempt["evaluation"]["rubric"]["total"]
+                    if should_promote_attempt(final_attempt, advisor_reconsider_attempt):
+                        final_attempt = advisor_reconsider_attempt
 
-                    if repaired_action == "accept" or repaired_total >= first_total:
-                        final_attempt = repair_attempt
-
-                    write_json(bench_output_dir / "repair_input_feedback.json", {"feedback_text": feedback_text})
-                    write_json(bench_output_dir / "generator_result_repair.json", repair_attempt["generator_result"].to_dict())
-                    write_json(bench_output_dir / "tester_result_repair.json", repair_attempt["comparison_report"])
-                    write_json(bench_output_dir / "rubric_result_repair.json", repair_attempt["evaluation"])
+                    write_json(bench_output_dir / "generator_input_advisor_retry.json", alternate_input.to_dict())
+                    write_json(
+                        bench_output_dir / "generator_result_advisor_retry.json",
+                        advisor_reconsider_attempt["generator_result"].to_dict(),
+                    )
+                    write_json(
+                        bench_output_dir / "tester_result_advisor_retry.json",
+                        advisor_reconsider_attempt["comparison_report"],
+                    )
+                    write_json(
+                        bench_output_dir / "rubric_result_advisor_retry.json",
+                        advisor_reconsider_attempt["evaluation"],
+                    )
                 else:
                     write_json(
-                        bench_output_dir / "repair_input_feedback.json",
-                        {
-                            "feedback_text": feedback_text,
-                            "note": "Repair was requested by rubric, but no recognized feedback field was found on GeneratorInput.",
-                        },
+                        bench_output_dir / "advisor_reconsideration_note.json",
+                        {"note": "Evaluator requested advisor reconsideration, but no alternate ranked candidate was available."},
                     )
 
             final_generator_result: GeneratorResult = final_attempt["generator_result"]

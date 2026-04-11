@@ -22,14 +22,12 @@ def _to_float(value: Any) -> Optional[float]:
 
 def _is_environment_failure(comparison_report: Any) -> bool:
     original_build = _get(comparison_report, "original_build")
-    optimized_build = _get(comparison_report, "optimized_build")
 
     original_compile = bool(_get(original_build, "compile_success", False))
-    optimized_compile = bool(_get(optimized_build, "compile_success", False))
 
     # If the baseline/original does not compile, the benchmark cannot be used
     # to judge the generated optimization.
-    return (not original_compile) and (not optimized_compile or True)
+    return not original_compile
 
 
 def _build_hard_gates(comparison_report: Any) -> Dict[str, bool]:
@@ -49,6 +47,67 @@ def _build_hard_gates(comparison_report: Any) -> Dict[str, bool]:
         "exit_code_match": bool(_get(output_cmp, "exit_code_match", False)),
         "stderr_match": bool(_get(output_cmp, "stderr_match", False)),
     }
+
+def _is_candidate_faithful(
+    generator_result: Any,
+    comparison_report: Any,
+) -> bool:
+    """
+    Heuristic for whether the generator likely implemented the selected plan faithfully.
+
+    We do not use an LLM judge here. Instead, we use:
+      - selected candidate metadata present
+      - patch not excessively broad
+      - generated code compiled and ran
+    """
+    diff_metrics = _get(comparison_report, "diff_metrics")
+    optimized_build = _get(comparison_report, "optimized_build")
+    optimized_run = _get(comparison_report, "optimized_run")
+
+    selected_pattern = str(_get(generator_result, "selected_candidate_pattern", "") or "").strip()
+    selected_target = str(_get(generator_result, "selected_candidate_target", "") or "").strip()
+    percent_file_changed = _to_float(_get(diff_metrics, "percent_file_changed")) or 100.0
+
+    return (
+        bool(selected_pattern)
+        and bool(selected_target)
+        and bool(_get(optimized_build, "compile_success", False))
+        and bool(_get(optimized_run, "run_success", False))
+        and percent_file_changed <= 70.0
+    )
+
+
+def _telemetry_pattern_alignment(
+    generator_result: Any,
+    comparison_report: Any,
+) -> bool:
+    """
+    Heuristic for whether the chosen candidate pattern matches the apparent bottleneck.
+
+    This is deterministic and based on the benchmark/source hint plus pattern text.
+    """
+    selected_pattern = str(_get(generator_result, "selected_candidate_pattern", "") or "").lower()
+    optimized_source = str(_get(comparison_report, "optimized_source", "") or "").lower()
+
+    if any(k in optimized_source for k in ["mem_saxpy", "saxpy"]):
+        return any(
+            k in selected_pattern
+            for k in ["smaller data", "precision", "type", "memory", "locality", "vector"]
+        )
+
+    if any(k in optimized_source for k in ["omp", "imbalance", "openmp"]):
+        return any(
+            k in selected_pattern
+            for k in ["schedule", "load", "imbalance", "parallel", "openmp", "chunk"]
+        )
+
+    if any(k in optimized_source for k in ["mpi", "pingpong"]):
+        return any(
+            k in selected_pattern
+            for k in ["mpi", "communication", "async", "message", "overlap"]
+        )
+
+    return True
 
 
 def _compute_numeric_correctness(generator_result: Any, comparison_report: Any) -> Dict[str, Any]:
@@ -302,14 +361,19 @@ def evaluate_with_rubric(generator_result: Any, comparison_report: Any) -> Dict[
     total = correctness_safety + optimization_faithfulness + hpc_applicability + repairability
 
     # ---------- Decision ----------
+    candidate_faithful = _is_candidate_faithful(generator_result, comparison_report)
+    telemetry_aligned = _telemetry_pattern_alignment(generator_result, comparison_report)
+
     if numeric["correctness_pass"] and total >= 75:
         action = "accept"
         reason = "Passed deterministic checks with strong rubric score."
+
     elif numeric["acceptable_drift"] and percent_improvement is not None and percent_improvement >= 5.0:
         action = "accept_with_warning"
         reason = (
             "Accepted with warning: strong performance gain with acceptable HPC-style numerical drift."
         )
+
     elif not numeric["correctness_pass"] and not numeric["acceptable_drift"]:
         if total >= 45:
             action = "repair_once"
@@ -317,12 +381,40 @@ def evaluate_with_rubric(generator_result: Any, comparison_report: Any) -> Dict[
         else:
             action = "reject"
             reason = "Correctness deviation is too large and the overall result is too weak for repair."
+
+    elif (
+        candidate_faithful
+        and numeric["correctness_pass"]
+        and percent_improvement is not None
+        and percent_improvement <= 5.0
+        and not telemetry_aligned
+    ):
+        action = "reconsider_advisor"
+        reason = (
+            "Generated code appears faithful and correct, but the selected optimization "
+            "pattern is weakly aligned with the apparent bottleneck and produced limited gain."
+        )
+
+    elif (
+        candidate_faithful
+        and (numeric["correctness_pass"] or numeric["acceptable_drift"])
+        and percent_improvement is not None
+        and percent_improvement <= 0.0
+    ):
+        action = "reconsider_advisor"
+        reason = (
+            "Generated code appears faithful and executable, but performance did not improve. "
+            "This suggests the selected optimization strategy may be mismatched."
+        )
+
     elif total >= 75:
         action = "accept"
         reason = "Accepted based on rubric score."
+
     elif total >= 45:
         action = "repair_once"
         reason = "Moderate result; one repair attempt justified."
+
     else:
         action = "reject"
         reason = "Low rubric score or non-repairable result."
@@ -352,6 +444,8 @@ def evaluate_with_rubric(generator_result: Any, comparison_report: Any) -> Dict[
             "selected_candidate_pattern": selected_pattern,
             "selected_candidate_target": selected_target,
             "percent_file_changed": percent_file_changed,
+            "candidate_faithful": _is_candidate_faithful(generator_result, comparison_report),
+            "telemetry_pattern_aligned": _telemetry_pattern_alignment(generator_result, comparison_report),
             "optimized_build_stderr": _get(optimized_build, "stderr"),
             "optimized_run_stderr": _get(optimized_run, "representative_stderr"),
         },

@@ -247,21 +247,29 @@ def compile_kernel(
     output_binary: Path,
     dataset_size: str,
     extra_flags: Optional[List[str]] = None,
+    extra_include_dirs: Optional[List[Path]] = None,
 ) -> None:
     """
     Compiles a PolyBench kernel using mpicc with OpenMP support.
     Raises RuntimeError if compilation fails.
     """
     flags = extra_flags or []
+    extra_include_dirs = extra_include_dirs or []
+
     polybench_c = REPO_ROOT / "kernels" / "utilities" / "polybench.c"
-    include_dir = REPO_ROOT / "kernels" / "utilities"
+    include_dirs = [REPO_ROOT / "kernels" / "utilities"] + extra_include_dirs
 
     cmd = [
         "mpicc",
         "-O3",
         "-march=native",
         "-fopenmp",
-        "-I", str(include_dir),
+    ]
+
+    for inc in include_dirs:
+        cmd += ["-I", str(inc)]
+
+    cmd += [
         str(polybench_c),
         str(file_path),
         f"-D{dataset_size}",
@@ -352,6 +360,7 @@ def run_benchmark(
     runs: int,
     use_srun: bool,
     baseline_output_path: Optional[Path] = None,
+    kernel_include_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """
     Compiles and benchmarks a PolyBench kernel.
@@ -368,6 +377,7 @@ def run_benchmark(
         output_binary=verify_binary,
         dataset_size=dataset_size,
         extra_flags=["-DPOLYBENCH_DUMP_ARRAYS"],
+        extra_include_dirs=[kernel_include_dir] if kernel_include_dir is not None else None,
     )
 
     result = run_command(
@@ -403,6 +413,7 @@ def run_benchmark(
         output_binary=timing_binary,
         dataset_size=dataset_size,
         extra_flags=["-DPOLYBENCH_TIME"],
+        extra_include_dirs=[kernel_include_dir] if kernel_include_dir is not None else None,
     )
 
     # Step 4: Timed runs
@@ -552,6 +563,7 @@ def main() -> None:
             runs=args.runs,
             use_srun=args.use_srun,
             baseline_output_path=None,
+            kernel_include_dir=source_path.parent,
         )
         print(
             f"        Baseline median: {base_results['median']:.6f}s "
@@ -584,6 +596,7 @@ def main() -> None:
             runs=args.runs,
             use_srun=args.use_srun,
             baseline_output_path=base_results["output_file"],
+            kernel_include_dir=source_path.parent,
         )
         print(
             f"        Optimized median: {opt_results['median']:.6f}s "

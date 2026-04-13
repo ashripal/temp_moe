@@ -30,7 +30,7 @@ from openai import OpenAI
 class OpenAIExpertLLM(LLMClient):
     """OpenAI-backed LLM client for the advisor/expert stage."""
 
-    def __init__(self, model_name: str = "gpt-4o", api_key: Optional[str] = None) -> None:
+    def __init__(self, model_name: str = "gpt-5", api_key: Optional[str] = None) -> None:
         self.model_name = model_name
         self.client = OpenAI(api_key=api_key or os.environ.get("OPENAI_API_KEY"))
 
@@ -57,7 +57,7 @@ class OpenAIGeneratorBackend:
     def __init__(
         self,
         prompts_dir: Path,
-        model_name: str = "gpt-4o",
+        model_name: str = "gpt-5",
         api_key: Optional[str] = None,
     ) -> None:
         from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -483,8 +483,8 @@ def main() -> None:
     parser.add_argument("--cpus", type=int, default=40, help="OpenMP threads per task")
     parser.add_argument("--dataset", type=str, default="EXTRALARGE", help="PolyBench dataset size")
     parser.add_argument("--runs", type=int, default=5, help="Number of timed runs per kernel")
-    parser.add_argument("--advisor-model", type=str, default="gpt-4o", help="Advisor model")
-    parser.add_argument("--generator-model", type=str, default="gpt-4o", help="Generator model")
+    parser.add_argument("--advisor-model", type=str, default="gpt-5", help="Advisor model")
+    parser.add_argument("--generator-model", type=str, default="gpt-5", help="Generator model")
     parser.add_argument(
         "--kernels",
         nargs="*",

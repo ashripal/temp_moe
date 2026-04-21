@@ -382,6 +382,13 @@ class KnowledgeBase:
             score = 0
             detection_tags = set(p.detection_tags)
             metric_tags = set(p.metric_tags)
+            pattern_text = _joined_text(
+                p.category,
+                p.name,
+                p.description,
+                p.detection,
+                p.optimized_metrics,
+            ).lower()
 
             score += 2
 
@@ -394,14 +401,25 @@ class KnowledgeBase:
                     continue
 
             elif expert_name == "Parallelism & Job Expert":
-                if "omp_barrier" in detection_tags:
+                has_parallel_signal = omp_barrier >= 15.0 or omp_imbalance >= 1.5
+                is_affinity_or_placement = any(
+                    kw in pattern_text
+                    for kw in ("affinity", "pinning", "placement", "numa")
+                )
+
+                if not has_parallel_signal:
+                    continue
+
+                if "omp_barrier" in detection_tags and omp_barrier >= 15.0:
                     score += 6
-                if "omp_imbalance" in detection_tags:
+                if "omp_imbalance" in detection_tags and omp_imbalance >= 1.5:
                     score += 6
                 if "numa" in detection_tags:
                     score += 2
                 if "omp_barrier_pct" in metric_tags or "omp_imbalance_ratio" in metric_tags or "scaling_efficiency" in metric_tags:
                     score += 2
+                if is_affinity_or_placement:
+                    score -= 4
                 if (omp_barrier >= 15.0 or omp_imbalance >= 1.5) and not (
                     "omp_barrier" in detection_tags or "omp_imbalance" in detection_tags or "numa" in detection_tags
                 ):
@@ -426,5 +444,9 @@ class KnowledgeBase:
             return [p for _, p in scored[:limit]]
 
         # Expert-specific fallback instead of generic text retrieval
+        if expert_name == "Parallelism & Job Expert" and not (
+            omp_barrier >= 15.0 or omp_imbalance >= 1.5
+        ):
+            return []
         fallback = self._expert_relevant_patterns(expert_name)
         return fallback[:limit]

@@ -6,28 +6,30 @@ import os
 import statistics
 import subprocess
 import sys
+import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 # --- REPO ROOT SETUP ---
 REPO_ROOT = Path(os.environ.get("AUTOUP_REPO_ROOT", Path(__file__).resolve().parent.parent))
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-# --- MoE PIPELINE IMPORTS ---
-from implementation.advisor import MoEAdvisor
-from implementation.generator import CodeGenerator
-from implementation.kb import KnowledgeBase
-from implementation.llm import LLMClient, LLMMessage
-from implementation.generator.generator_schema import GeneratorInput, GeneratorResult
 from openai import OpenAI
+
+if TYPE_CHECKING:
+    from implementation.advisor import MoEAdvisor
+    from implementation.generator import CodeGenerator
+    from implementation.generator.generator_schema import GeneratorInput, GeneratorResult
+    from implementation.llm import LLMMessage
 
 
 # ---------------------------------------------------------------------------
 # OPENAI BACKENDS
 # ---------------------------------------------------------------------------
 
-class OpenAIExpertLLM(LLMClient):
+class OpenAIExpertLLM:
     """OpenAI-backed LLM client for the advisor/expert stage."""
 
     def __init__(self, model_name: str = "gpt-5", api_key: Optional[str] = None) -> None:
@@ -151,7 +153,7 @@ class OpenAIGeneratorBackend:
 def discover_polybench_kernels() -> List[str]:
     """
     Discover all benchmark kernel source files under kernels/, excluding
-    support files and generated optimized copies.
+    utility/support files, backup sources, and generated optimized copies.
 
     Returns paths relative to REPO_ROOT and without the .c suffix, matching
     the existing --kernels argument format.
@@ -161,18 +163,425 @@ def discover_polybench_kernels() -> List[str]:
 
     for path in kernels_root.rglob("*.c"):
         rel = path.relative_to(REPO_ROOT)
+        rel_posix = rel.as_posix()
 
-        # Skip support file
-        if rel.as_posix() == "kernels/utilities/polybench.c":
+        # Skip utility/support sources; they are not standalone benchmarks.
+        if rel.parts[:2] == ("kernels", "utilities"):
             continue
 
-        # Skip generated optimized files if any were written into source dirs
+        # Skip backup/original sources such as Nussinov.orig.c.
+        if rel_posix.endswith(".orig.c"):
+            continue
+
+        # Skip generated optimized files if any were written into source dirs.
         if path.stem.endswith("_opt"):
             continue
 
         discovered.append(str(rel.with_suffix("")).replace("\\", "/"))
 
     return sorted(discovered)
+
+
+@dataclass(frozen=True)
+class ExternalBenchmarkSpec:
+    benchmark_id: str
+    family: str
+    executable_rel: str
+    cwd_rel: str
+    kind: str
+    default_args: tuple[str, ...] = ()
+    exact_total_tasks: Optional[int] = None
+    min_total_tasks: int = 1
+    power_of_two_tasks: bool = False
+
+    @property
+    def executable_path(self) -> Path:
+        return REPO_ROOT / self.executable_rel
+
+    @property
+    def cwd_path(self) -> Path:
+        return REPO_ROOT / self.cwd_rel
+
+
+EXTERNAL_BUILD_SCRIPT = REPO_ROOT / "benchmarks" / "external" / "build_selected.sh"
+
+EXTERNAL_BENCHMARKS: Dict[str, ExternalBenchmarkSpec] = {
+    "external/epcc-syncbench": ExternalBenchmarkSpec(
+        benchmark_id="external/epcc-syncbench",
+        family="epcc-openmp",
+        executable_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31/syncbench",
+        cwd_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31",
+        kind="openmp",
+        default_args=("--outer-repetitions", "1", "--test-time", "100"),
+        exact_total_tasks=1,
+    ),
+    "external/epcc-schedbench": ExternalBenchmarkSpec(
+        benchmark_id="external/epcc-schedbench",
+        family="epcc-openmp",
+        executable_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31/schedbench",
+        cwd_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31",
+        kind="openmp",
+        default_args=("--outer-repetitions", "1", "--test-time", "100"),
+        exact_total_tasks=1,
+    ),
+    "external/epcc-taskbench": ExternalBenchmarkSpec(
+        benchmark_id="external/epcc-taskbench",
+        family="epcc-openmp",
+        executable_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31/taskbench",
+        cwd_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31",
+        kind="openmp",
+        default_args=("--outer-repetitions", "1", "--test-time", "100"),
+        exact_total_tasks=1,
+    ),
+    "external/epcc-arraybench-81": ExternalBenchmarkSpec(
+        benchmark_id="external/epcc-arraybench-81",
+        family="epcc-openmp",
+        executable_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31/arraybench_81",
+        cwd_rel="benchmarks/external/epcc-openmp-microbenchmarks/openmpbench_C_v31",
+        kind="openmp",
+        default_args=("--outer-repetitions", "1", "--test-time", "100"),
+        exact_total_tasks=1,
+    ),
+    "external/osu_latency": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_latency",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/pt2pt/osu_latency",
+        cwd_rel="preflight_build/osu/mpi/pt2pt",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        exact_total_tasks=2,
+    ),
+    "external/osu_bw": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_bw",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/pt2pt/osu_bw",
+        cwd_rel="preflight_build/osu/mpi/pt2pt",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        exact_total_tasks=2,
+    ),
+    "external/osu_bibw": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_bibw",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/pt2pt/osu_bibw",
+        cwd_rel="preflight_build/osu/mpi/pt2pt",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        exact_total_tasks=2,
+    ),
+    "external/osu_allreduce": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_allreduce",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/collective/osu_allreduce",
+        cwd_rel="preflight_build/osu/mpi/collective",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        min_total_tasks=2,
+    ),
+    "external/osu_alltoall": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_alltoall",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/collective/osu_alltoall",
+        cwd_rel="preflight_build/osu/mpi/collective",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        min_total_tasks=2,
+    ),
+    "external/osu_barrier": ExternalBenchmarkSpec(
+        benchmark_id="external/osu_barrier",
+        family="osu-mpi",
+        executable_rel="preflight_build/osu/mpi/collective/osu_barrier",
+        cwd_rel="preflight_build/osu/mpi/collective",
+        kind="mpi",
+        default_args=("-x", "10", "-i", "100"),
+        min_total_tasks=2,
+    ),
+    "external/npb-cg-s": ExternalBenchmarkSpec(
+        benchmark_id="external/npb-cg-s",
+        family="npb-mpi",
+        executable_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI/bin/cg.S.x",
+        cwd_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI",
+        kind="mpi",
+        min_total_tasks=1,
+        power_of_two_tasks=True,
+    ),
+    "external/npb-mg-s": ExternalBenchmarkSpec(
+        benchmark_id="external/npb-mg-s",
+        family="npb-mpi",
+        executable_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI/bin/mg.S.x",
+        cwd_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI",
+        kind="mpi",
+        min_total_tasks=1,
+        power_of_two_tasks=True,
+    ),
+    "external/npb-ft-s": ExternalBenchmarkSpec(
+        benchmark_id="external/npb-ft-s",
+        family="npb-mpi",
+        executable_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI/bin/ft.S.x",
+        cwd_rel="benchmarks/external/npb/NPB3.4/NPB3.4-MPI",
+        kind="mpi",
+        min_total_tasks=1,
+        power_of_two_tasks=True,
+    ),
+    "external/npb-bt-mz-s": ExternalBenchmarkSpec(
+        benchmark_id="external/npb-bt-mz-s",
+        family="npb-mz-hybrid",
+        executable_rel="benchmarks/external/npb/NPB3.4-MZ/NPB3.4-MZ-MPI/bin/bt-mz.S.x",
+        cwd_rel="benchmarks/external/npb/NPB3.4-MZ/NPB3.4-MZ-MPI",
+        kind="hybrid",
+        min_total_tasks=1,
+    ),
+    "external/npb-sp-mz-s": ExternalBenchmarkSpec(
+        benchmark_id="external/npb-sp-mz-s",
+        family="npb-mz-hybrid",
+        executable_rel="benchmarks/external/npb/NPB3.4-MZ/NPB3.4-MZ-MPI/bin/sp-mz.S.x",
+        cwd_rel="benchmarks/external/npb/NPB3.4-MZ/NPB3.4-MZ-MPI",
+        kind="hybrid",
+        min_total_tasks=1,
+    ),
+}
+
+EXTERNAL_BENCHMARK_ALIASES: Dict[str, List[str]] = {
+    "all-external": list(EXTERNAL_BENCHMARKS.keys()),
+    "parallel-shortlist": list(EXTERNAL_BENCHMARKS.keys()),
+}
+
+
+def expand_requested_benchmarks(requested: List[str]) -> List[str]:
+    expanded: List[str] = []
+    seen: set[str] = set()
+    external_lookup = {name.lower(): name for name in EXTERNAL_BENCHMARKS}
+
+    for item in requested:
+        token = item.lower()
+        if token == "all":
+            items = discover_polybench_kernels()
+        elif token in EXTERNAL_BENCHMARK_ALIASES:
+            items = EXTERNAL_BENCHMARK_ALIASES[token]
+        elif token in external_lookup:
+            items = [external_lookup[token]]
+        else:
+            items = [item]
+
+        for resolved in items:
+            if resolved not in seen:
+                expanded.append(resolved)
+                seen.add(resolved)
+
+    return expanded
+
+
+def is_power_of_two(value: int) -> bool:
+    return value > 0 and (value & (value - 1)) == 0
+
+
+def ensure_external_benchmarks_built(
+    selected_specs: List[ExternalBenchmarkSpec],
+    *,
+    rebuild: bool,
+) -> None:
+    if not selected_specs:
+        return
+
+    if not EXTERNAL_BUILD_SCRIPT.exists():
+        raise RuntimeError(
+            f"External benchmark build script is missing: {EXTERNAL_BUILD_SCRIPT}"
+        )
+
+    needs_build = rebuild or any(not spec.executable_path.exists() for spec in selected_specs)
+    if not needs_build:
+        return
+
+    print("Preparing managed external benchmarks via build_selected.sh ...")
+    result = subprocess.run(
+        [str(EXTERNAL_BUILD_SCRIPT)],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Failed to build external benchmarks.\n"
+            f"STDOUT:\n{result.stdout}\n"
+            f"STDERR:\n{result.stderr}"
+        )
+
+
+def resolve_external_task_count(
+    spec: ExternalBenchmarkSpec,
+    *,
+    requested_total_tasks: int,
+) -> tuple[int, List[str]]:
+    warnings: List[str] = []
+
+    if spec.kind == "openmp":
+        if requested_total_tasks != 1:
+            warnings.append(
+                f"{spec.benchmark_id} is OpenMP-only; forcing a single task instead of {requested_total_tasks}."
+            )
+        return 1, warnings
+
+    total_tasks = requested_total_tasks
+
+    if spec.exact_total_tasks is not None and total_tasks != spec.exact_total_tasks:
+        warnings.append(
+            f"{spec.benchmark_id} requires exactly {spec.exact_total_tasks} MPI task(s); "
+            f"using that instead of the requested {total_tasks}."
+        )
+        total_tasks = spec.exact_total_tasks
+
+    if total_tasks < spec.min_total_tasks:
+        raise RuntimeError(
+            f"{spec.benchmark_id} requires at least {spec.min_total_tasks} MPI task(s), "
+            f"but the current layout only provides {total_tasks}."
+        )
+
+    if spec.power_of_two_tasks and not is_power_of_two(total_tasks):
+        fallback = 1 << (total_tasks.bit_length() - 1)
+        if fallback < spec.min_total_tasks:
+            raise RuntimeError(
+                f"{spec.benchmark_id} requires a power-of-two MPI task count, "
+                f"and there is no valid fallback for {total_tasks} task(s)."
+            )
+        warnings.append(
+            f"{spec.benchmark_id} works best with a power-of-two MPI task count; "
+            f"falling back from {total_tasks} to {fallback}."
+        )
+        total_tasks = fallback
+
+    return total_tasks, warnings
+
+
+def build_external_command(
+    spec: ExternalBenchmarkSpec,
+    *,
+    use_srun: bool,
+    nodes: int,
+    tasks_per_node: int,
+    cpus_per_task: int,
+) -> tuple[List[str], List[str], int]:
+    requested_total_tasks = max(1, nodes * tasks_per_node)
+    total_tasks, warnings = resolve_external_task_count(
+        spec,
+        requested_total_tasks=requested_total_tasks,
+    )
+    exe_and_args = [str(spec.executable_path), *spec.default_args]
+
+    if spec.kind == "mpi" and cpus_per_task != 1:
+        warnings.append(
+            f"{spec.benchmark_id} is MPI-only; OMP_NUM_THREADS={cpus_per_task} will not change the benchmark itself."
+        )
+
+    if use_srun:
+        if spec.kind == "openmp":
+            cmd = [
+                "srun",
+                "--nodes=1",
+                "--ntasks=1",
+                f"--cpus-per-task={cpus_per_task}",
+                *exe_and_args,
+            ]
+        else:
+            actual_nodes = min(nodes, total_tasks)
+            cmd = [
+                "srun",
+                f"--nodes={actual_nodes}",
+                f"--ntasks={total_tasks}",
+                f"--cpus-per-task={cpus_per_task}",
+                *exe_and_args,
+            ]
+    else:
+        if spec.kind == "openmp":
+            cmd = exe_and_args
+        else:
+            cmd = ["mpirun", "-np", str(total_tasks), *exe_and_args]
+
+    return cmd, warnings, total_tasks
+
+
+def run_external_benchmark(
+    *,
+    spec: ExternalBenchmarkSpec,
+    build_dir: Path,
+    nodes: int,
+    tasks_per_node: int,
+    cpus_per_task: int,
+    runs: int,
+    use_srun: bool,
+) -> Dict[str, Any]:
+    if not spec.executable_path.exists():
+        raise RuntimeError(
+            f"Managed external benchmark binary is missing: {spec.executable_path}"
+        )
+
+    command, warnings, total_tasks = build_external_command(
+        spec,
+        use_srun=use_srun,
+        nodes=nodes,
+        tasks_per_node=tasks_per_node,
+        cpus_per_task=cpus_per_task,
+    )
+
+    log_path = build_dir / f"{spec.benchmark_id.replace('/', '_').replace('-', '_')}_external.log"
+    log_path.write_text("", encoding="utf-8")
+
+    times: List[float] = []
+    env = build_runtime_env(cpus_per_task)
+
+    for i in range(runs):
+        started = time.perf_counter()
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            cwd=str(spec.cwd_path),
+            env=env,
+        )
+        elapsed = time.perf_counter() - started
+
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(f"=== Run {i + 1}/{runs} ===\n")
+            fh.write(f"Command: {' '.join(command)}\n")
+            fh.write(f"Wall time: {elapsed:.6f}\n")
+            fh.write("STDOUT:\n")
+            fh.write(result.stdout)
+            if not result.stdout.endswith("\n"):
+                fh.write("\n")
+            fh.write("STDERR:\n")
+            fh.write(result.stderr)
+            if not result.stderr.endswith("\n"):
+                fh.write("\n")
+            fh.write("\n")
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"External benchmark failed on run {i + 1}: {spec.benchmark_id}\n"
+                f"Command: {' '.join(command)}\n"
+                f"STDOUT:\n{result.stdout}\n"
+                f"STDERR:\n{result.stderr}"
+            )
+
+        times.append(elapsed)
+
+    sorted_times = sorted(times)
+    n = len(sorted_times)
+    median = (
+        (sorted_times[n // 2 - 1] + sorted_times[n // 2]) / 2.0
+        if n % 2 == 0
+        else sorted_times[n // 2]
+    )
+
+    return {
+        "median": median,
+        "mean": statistics.mean(times),
+        "stdev": statistics.stdev(times) if len(times) > 1 else 0.0,
+        "all_times": times,
+        "verified": True,
+        "output_file": log_path,
+        "command": command,
+        "warnings": warnings,
+        "total_tasks": total_tasks,
+    }
 
 
 _KERNEL_PROFILES: Dict[str, Dict[str, Any]] = {
@@ -228,13 +637,58 @@ def benchmark_inputs(kernel_stem: str) -> Dict[str, Any]:
 # TRANSFORMATION ENTRY POINT
 # ---------------------------------------------------------------------------
 
+
+@dataclass
+class TransformationOutcome:
+    status: str
+    accepted: bool
+    opt_source_path: Path
+    generator_result: GeneratorResult
+    used_retry: bool = False
+    rejection_reason: Optional[str] = None
+
+
+def compile_validation_feedback(kernel_stem: str, compile_error: str) -> str:
+    return (
+        f"Compile validation failed for generated code for kernel '{kernel_stem}'.\n"
+        "Repair only the compile issues conservatively. "
+        "If the requested optimization is unsafe or relies on unsupported "
+        "platform-specific APIs, return the original code unchanged.\n\n"
+        f"{compile_error}"
+    )
+
+
+def validate_generated_kernel(
+    *,
+    source_path: Path,
+    validation_binary: Path,
+    dataset_size: str,
+    kernel_include_dir: Path,
+) -> None:
+    compile_kernel(
+        file_path=source_path,
+        output_binary=validation_binary,
+        dataset_size=dataset_size,
+        extra_flags=["-DPOLYBENCH_DUMP_ARRAYS"],
+        extra_include_dirs=[kernel_include_dir],
+    )
+
+
 def apply_catalog_transformations(
     source_code: str,
     kernel_stem: str,
+    kernel_label: str,
     advisor: MoEAdvisor,
     generator: CodeGenerator,
-) -> str:
+    build_dir: Path,
+    dataset_size: str,
+    kernel_include_dir: Path,
+) -> TransformationOutcome:
+    from implementation.generator.generator_schema import GeneratorResult
+
     bench_meta = benchmark_inputs(kernel_stem)
+    opt_source_path = build_dir / f"{kernel_label}_opt.c"
+    validation_binary = build_dir / f"{kernel_label}_opt_compile_check.exe"
 
     advisor_result = advisor.run(
         code_snippets=source_code,
@@ -253,15 +707,115 @@ def apply_catalog_transformations(
         flame_report=None,
     )
 
+    if not advisor_result.final_ranked_candidates:
+        no_candidate_result = GeneratorResult(
+            analysis="Advisor did not select a safe source-level rewrite candidate.",
+            selected_candidate_pattern="NO_CANDIDATE",
+            selected_candidate_target="N/A",
+            applied_changes_summary=(
+                "No changes applied; no safe source-level rewrite candidate was selected."
+            ),
+            final_code=source_code,
+            correctness_risks=[
+                "No rewrite candidate selected; original code preserved."
+            ],
+            expected_metrics=[],
+            compile_ready=False,
+            used_feedback=False,
+            generation_succeeded=False,
+            failure_reason="No safe source-level rewrite candidate was selected.",
+        )
+        return TransformationOutcome(
+            status="no_rewrite_candidate",
+            accepted=False,
+            opt_source_path=opt_source_path,
+            generator_result=no_candidate_result,
+            rejection_reason=(
+                f"No safe source-level rewrite candidate was selected for {kernel_stem}.\n"
+                f"Advisor reason: {advisor_result.routing.reason}"
+            ),
+        )
+
     generator_result = generator.generate(generator_input)
 
     if not generator_result.generation_succeeded or not generator_result.final_code.strip():
-        raise RuntimeError(
-            f"Code generation failed for {kernel_stem}.\n"
-            f"Result: {generator_result.to_dict()}"
+        return TransformationOutcome(
+            status="generation_failed",
+            accepted=False,
+            opt_source_path=opt_source_path,
+            generator_result=generator_result,
+            rejection_reason=(
+                f"Code generation failed for {kernel_stem}.\n"
+                f"Result: {generator_result.to_dict()}"
+            ),
         )
 
-    return generator_result.final_code
+    opt_source_path.write_text(generator_result.final_code, encoding="utf-8")
+
+    try:
+        validate_generated_kernel(
+            source_path=opt_source_path,
+            validation_binary=validation_binary,
+            dataset_size=dataset_size,
+            kernel_include_dir=kernel_include_dir,
+        )
+        return TransformationOutcome(
+            status="candidate_ready",
+            accepted=True,
+            opt_source_path=opt_source_path,
+            generator_result=generator_result,
+        )
+    except RuntimeError as compile_error:
+        retry_result = generator.retry_with_feedback(
+            generator_input,
+            evaluator_feedback=compile_validation_feedback(
+                kernel_stem=kernel_stem,
+                compile_error=str(compile_error),
+            ),
+        )
+
+    if not retry_result.generation_succeeded or not retry_result.final_code.strip():
+        return TransformationOutcome(
+            status="compile_failed",
+            accepted=False,
+            opt_source_path=opt_source_path,
+            generator_result=retry_result,
+            used_retry=True,
+            rejection_reason=(
+                f"Retry generation failed for {kernel_stem} after compile validation.\n"
+                f"Result: {retry_result.to_dict()}"
+            ),
+        )
+
+    opt_source_path.write_text(retry_result.final_code, encoding="utf-8")
+
+    try:
+        validate_generated_kernel(
+            source_path=opt_source_path,
+            validation_binary=validation_binary,
+            dataset_size=dataset_size,
+            kernel_include_dir=kernel_include_dir,
+        )
+    except RuntimeError as retry_compile_error:
+        return TransformationOutcome(
+            status="compile_failed",
+            accepted=False,
+            opt_source_path=opt_source_path,
+            generator_result=retry_result,
+            used_retry=True,
+            rejection_reason=(
+                "Optimization rejected after compile validation retry.\n"
+                f"{retry_compile_error}"
+            ),
+        )
+
+    return TransformationOutcome(
+        status="candidate_ready",
+        accepted=True,
+        opt_source_path=opt_source_path,
+        generator_result=retry_result,
+        used_retry=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -503,7 +1057,9 @@ def run_benchmark(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="OptimizeHPC PolyBench Orchestrator")
+    parser = argparse.ArgumentParser(
+        description="OptimizeHPC orchestrator for PolyBench and managed external benchmarks"
+    )
     parser.add_argument("--nodes", type=int, default=1, help="Number of nodes to use at runtime")
     parser.add_argument("--tasks-per-node", type=int, default=1, help="MPI tasks per node")
     parser.add_argument("--cpus", type=int, default=40, help="OpenMP threads per task")
@@ -515,7 +1071,12 @@ def main() -> None:
         "--kernels",
         nargs="*",
         default=["all"],
-        help="Kernel paths relative to repo root, without .c suffix, or 'all' to auto-discover",
+        help=(
+            "PolyBench kernel paths relative to repo root, without .c suffix; "
+            "'all' for PolyBench auto-discovery; "
+            "'parallel-shortlist' or 'all-external' for the managed parallel benchmark bundle; "
+            "or explicit external ids such as external/osu_latency."
+        ),
     )
     parser.add_argument(
         "--build-dir",
@@ -528,11 +1089,17 @@ def main() -> None:
         action="store_true",
         help="Launch binaries via srun instead of direct execution",
     )
+    parser.add_argument(
+        "--rebuild-external",
+        action="store_true",
+        help="Force rebuilding the managed external benchmark bundle before execution",
+    )
     args = parser.parse_args()
 
     dataset_size = f"{args.dataset}_DATASET"
     build_dir = (REPO_ROOT / args.build_dir).resolve()
     build_dir.mkdir(parents=True, exist_ok=True)
+    args.kernels = expand_requested_benchmarks(args.kernels)
 
     print(
         f"Configuration: nodes={args.nodes} | tasks/node={args.tasks_per_node} | "
@@ -542,29 +1109,96 @@ def main() -> None:
     print(f"Build dir: {build_dir}")
     print(f"Advisor model: {args.advisor_model} | Generator model: {args.generator_model}")
     print(f"Use srun: {args.use_srun}")
+    if args.nodes > 1 and not args.use_srun:
+        print("WARNING: nodes > 1 but --use-srun is disabled, so binaries will run as direct local processes.")
+    if args.runs < 5:
+        print("WARNING: runs < 5 may produce noisy speedup measurements.")
 
-    # Initialize MoE pipeline once
-    kb = KnowledgeBase.from_csv(REPO_ROOT / "updated_optimization_catalog.csv")
-
-    advisor = MoEAdvisor(
-        llm=OpenAIExpertLLM(model_name=args.advisor_model),
-        kb=kb,
-        prompts_dir=REPO_ROOT / "implementation" / "prompts",
-    )
-
-    generator = CodeGenerator(
-        backend=OpenAIGeneratorBackend(
-            prompts_dir=REPO_ROOT / "implementation" / "generator" / "prompts",
-            model_name=args.generator_model,
+    external_specs = [
+        EXTERNAL_BENCHMARKS[kernel_name]
+        for kernel_name in args.kernels
+        if kernel_name in EXTERNAL_BENCHMARKS
+    ]
+    if external_specs:
+        print(f"Selected {len(external_specs)} managed external benchmark(s).")
+        ensure_external_benchmarks_built(
+            external_specs,
+            rebuild=args.rebuild_external,
         )
-    )
 
-    if len(args.kernels) == 1 and args.kernels[0].lower() == "all":
-        args.kernels = discover_polybench_kernels()
-        print(f"Discovered {len(args.kernels)} PolyBench kernels.")
+    advisor: Optional[MoEAdvisor] = None
+    generator: Optional[CodeGenerator] = None
+    has_polybench_work = any(kernel_name not in EXTERNAL_BENCHMARKS for kernel_name in args.kernels)
+    if has_polybench_work:
+        from implementation.advisor import MoEAdvisor
+        from implementation.generator import CodeGenerator
+        from implementation.kb import KnowledgeBase
+
+        kb = KnowledgeBase.from_csv(REPO_ROOT / "updated_optimization_catalog.csv")
+
+        advisor = MoEAdvisor(
+            llm=OpenAIExpertLLM(model_name=args.advisor_model),
+            kb=kb,
+            prompts_dir=REPO_ROOT / "implementation" / "prompts",
+        )
+
+        generator = CodeGenerator(
+            backend=OpenAIGeneratorBackend(
+                prompts_dir=REPO_ROOT / "implementation" / "generator" / "prompts",
+                model_name=args.generator_model,
+            )
+        )
+
+    summary_counts: Dict[str, int] = {
+        "baseline_ok": 0,
+        "optimized_ok": 0,
+        "performance_regressed": 0,
+        "correctness_failed": 0,
+        "generation_failed": 0,
+        "compile_failed": 0,
+        "no_rewrite_candidate": 0,
+        "external_only_ok": 0,
+        "external_only_failed": 0,
+        "missing_source": 0,
+        "unexpected_error": 0,
+    }
 
     for kernel_rel in args.kernels:
         try:
+            if kernel_rel in EXTERNAL_BENCHMARKS:
+                spec = EXTERNAL_BENCHMARKS[kernel_rel]
+                kernel_label = kernel_rel.replace("/", "_")
+
+                print(f"\n{'=' * 70}")
+                print(f"Benchmark: {kernel_rel}")
+                print(f"{'=' * 70}")
+                print("  [external] Running managed external benchmark...")
+
+                ext_results = run_external_benchmark(
+                    spec=spec,
+                    build_dir=build_dir,
+                    nodes=args.nodes,
+                    tasks_per_node=args.tasks_per_node,
+                    cpus_per_task=args.cpus,
+                    runs=args.runs,
+                    use_srun=args.use_srun,
+                )
+
+                for warning in ext_results["warnings"]:
+                    print(f"        WARNING: {warning}")
+
+                print(f"        Family: {spec.family}")
+                print(f"        Launch command: {' '.join(ext_results['command'])}")
+                print(f"        Effective MPI tasks: {ext_results['total_tasks']}")
+                print(
+                    f"        Median wall time: {ext_results['median']:.6f}s "
+                    f"(mean: {ext_results['mean']:.6f}s, stdev: {ext_results['stdev']:.6f}s)"
+                )
+                print(f"        Log file: {ext_results['output_file']}")
+                print("        Status: external_only_ok")
+                summary_counts["external_only_ok"] += 1
+                continue
+
             kernel_base = (REPO_ROOT / kernel_rel).resolve()
             source_path = kernel_base.with_suffix(".c")
             kernel_stem = kernel_base.name
@@ -576,6 +1210,7 @@ def main() -> None:
 
             if not source_path.exists():
                 print(f"  ERROR: Missing source file {source_path}")
+                summary_counts["missing_source"] += 1
                 continue
 
             # 1. Baseline
@@ -597,19 +1232,38 @@ def main() -> None:
                 f"        Baseline median: {base_results['median']:.6f}s "
                 f"(mean: {base_results['mean']:.6f}s, stdev: {base_results['stdev']:.6f}s)"
             )
+            print("        Status: baseline_ok")
+            summary_counts["baseline_ok"] += 1
 
             # 2. Optimize
             print("  [2/3] Applying catalog transformations via MoE pipeline...")
             source_code = source_path.read_text(encoding="utf-8")
-            optimized_code = apply_catalog_transformations(
+            if advisor is None or generator is None:
+                raise RuntimeError(
+                    "The MoE pipeline was not initialized for source-based benchmarks."
+                )
+            transformation = apply_catalog_transformations(
                 source_code=source_code,
                 kernel_stem=kernel_stem,
+                kernel_label=kernel_label,
                 advisor=advisor,
                 generator=generator,
+                build_dir=build_dir,
+                dataset_size=dataset_size,
+                kernel_include_dir=source_path.parent,
             )
 
-            opt_source_path = build_dir / f"{kernel_label}_opt.c"
-            opt_source_path.write_text(optimized_code, encoding="utf-8")
+            if not transformation.accepted:
+                print(f"        Status: {transformation.status}")
+                print("        Optimization rejected after compile validation; skipping optimized run.")
+                if transformation.rejection_reason:
+                    print(transformation.rejection_reason)
+                summary_counts[transformation.status] = summary_counts.get(transformation.status, 0) + 1
+                continue
+
+            opt_source_path = transformation.opt_source_path
+            if transformation.used_retry:
+                print("        Compile validation failed once; retry_with_feedback() produced a compilable rewrite.")
 
             # 3. Run optimized
             print("  [3/3] Running optimized...")
@@ -634,13 +1288,38 @@ def main() -> None:
 
             if opt_results["verified"]:
                 speedup = base_results["median"] / opt_results["median"]
+                status = "optimized_ok" if speedup >= 1.0 else "performance_regressed"
+                print(f"        Status: {status}")
+                summary_counts[status] += 1
                 print(f"\n  >>> Speedup: {speedup:.4f}x")
             else:
+                print("        Status: correctness_failed")
+                summary_counts["correctness_failed"] += 1
                 print("\n  >>> Speedup not reported — output verification FAILED.")
 
         except Exception as exc:
             print(f"  ERROR while processing {kernel_rel}: {exc}")
+            if kernel_rel in EXTERNAL_BENCHMARKS:
+                summary_counts["external_only_failed"] += 1
+            else:
+                summary_counts["unexpected_error"] += 1
             continue
+
+    print(f"\n{'=' * 70}")
+    print("Run Summary")
+    print(f"{'=' * 70}")
+    print(f"Total kernels considered: {len(args.kernels)}")
+    print(f"Baseline OK: {summary_counts['baseline_ok']}")
+    print(f"Optimized OK: {summary_counts['optimized_ok']}")
+    print(f"Performance regressed: {summary_counts['performance_regressed']}")
+    print(f"Correctness failed: {summary_counts['correctness_failed']}")
+    print(f"Generation failed: {summary_counts['generation_failed']}")
+    print(f"Compile failed: {summary_counts['compile_failed']}")
+    print(f"No rewrite candidate: {summary_counts['no_rewrite_candidate']}")
+    print(f"External-only OK: {summary_counts['external_only_ok']}")
+    print(f"External-only failed: {summary_counts['external_only_failed']}")
+    print(f"Missing source: {summary_counts['missing_source']}")
+    print(f"Unexpected errors: {summary_counts['unexpected_error']}")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,9 @@ You must follow these rules strictly:
 8. Return exactly one valid JSON object and nothing else.
 9. Do not wrap the JSON in markdown fences.
 10. The `final_code` field must contain the full rewritten source code, not a diff.
+11. Do not introduce or retain platform-specific affinity, pinning, placement, or NUMA APIs such as `sched_*`, `CPU_*`, `pthread_setaffinity_np`, or `numa_*` unless the original code already uses them safely and the selected candidate explicitly requires them.
+12. Do not repair compile failures by adding more platform-specific job-launch, affinity, or placement code to the C source.
+13. If the feedback shows that the selected candidate is really runtime tuning or job configuration, return the original code unchanged and explain that it should be applied outside the source file.
 
 Required JSON schema:
 
@@ -36,6 +39,8 @@ Repair policy:
 - If the feedback indicates insufficient speedup, make only conservative performance improvements consistent with the selected candidate.
 - If the feedback indicates formatting or patch issues, repair the output structure without expanding the optimization scope.
 - If safety is uncertain after feedback, return unchanged code.
+- If the feedback mentions affinity, pinning, placement, NUMA, `sched_*`, `CPU_*`, undeclared platform symbols, or missing platform headers, remove that source-level transformation rather than trying to preserve it.
+- Treat affinity, NUMA, placement, and job-tuning recommendations as runtime guidance, not as permission to inject platform-specific control code into the source.
 
 Original source code:
 {{ original_code }}

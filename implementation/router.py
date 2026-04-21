@@ -38,6 +38,6 @@ class SimpleTelemetryRouter:
             )
 
         return RoutingDecision(
-            selected_experts=["Parallelism & Job Expert"],
-            reason="Default to parallelism/job tuning as safe first action."
+            selected_experts=[],
+            reason="No strong telemetry signal was present, so no source rewrite expert was selected."
         )

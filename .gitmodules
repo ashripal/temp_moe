@@ -1,0 +1,9 @@
+[submodule "benchmarks/external/epcc-openmp-microbenchmarks"]
+	path = benchmarks/external/epcc-openmp-microbenchmarks
+	url = https://github.com/EPCCed/epcc-openmp-microbenchmarks.git
+[submodule "benchmarks/external/npb"]
+	path = benchmarks/external/npb
+	url = https://github.com/LLNL/NPB.git
+[submodule "benchmarks/external/osu-micro-benchmarks"]
+	path = benchmarks/external/osu-micro-benchmarks
+	url = https://github.com/forresti/osu-micro-benchmarks.git

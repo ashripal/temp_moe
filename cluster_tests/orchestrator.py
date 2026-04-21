@@ -148,6 +148,32 @@ class OpenAIGeneratorBackend:
 # ---------------------------------------------------------------------------
 # BENCHMARK-SPECIFIC TELEMETRY
 # ---------------------------------------------------------------------------
+def discover_polybench_kernels() -> List[str]:
+    """
+    Discover all benchmark kernel source files under kernels/, excluding
+    support files and generated optimized copies.
+
+    Returns paths relative to REPO_ROOT and without the .c suffix, matching
+    the existing --kernels argument format.
+    """
+    kernels_root = REPO_ROOT / "kernels"
+    discovered: List[str] = []
+
+    for path in kernels_root.rglob("*.c"):
+        rel = path.relative_to(REPO_ROOT)
+
+        # Skip support file
+        if rel.as_posix() == "kernels/utilities/polybench.c":
+            continue
+
+        # Skip generated optimized files if any were written into source dirs
+        if path.stem.endswith("_opt"):
+            continue
+
+        discovered.append(str(rel.with_suffix("")).replace("\\", "/"))
+
+    return sorted(discovered)
+
 
 _KERNEL_PROFILES: Dict[str, Dict[str, Any]] = {
     "gemm": {
@@ -488,11 +514,8 @@ def main() -> None:
     parser.add_argument(
         "--kernels",
         nargs="*",
-        default=[
-            "kernels/linear-algebra/blas/gemm/gemm",
-            "kernels/stencils/jacobi-2d/jacobi-2d",
-        ],
-        help="Kernel paths relative to repo root, without .c suffix",
+        default=["all"],
+        help="Kernel paths relative to repo root, without .c suffix, or 'all' to auto-discover",
     )
     parser.add_argument(
         "--build-dir",
@@ -536,79 +559,88 @@ def main() -> None:
         )
     )
 
+    if len(args.kernels) == 1 and args.kernels[0].lower() == "all":
+        args.kernels = discover_polybench_kernels()
+        print(f"Discovered {len(args.kernels)} PolyBench kernels.")
+
     for kernel_rel in args.kernels:
-        kernel_base = (REPO_ROOT / kernel_rel).resolve()
-        source_path = kernel_base.with_suffix(".c")
-        kernel_stem = kernel_base.name
-        kernel_label = kernel_rel.replace("/", "_")
+        try:
+            kernel_base = (REPO_ROOT / kernel_rel).resolve()
+            source_path = kernel_base.with_suffix(".c")
+            kernel_stem = kernel_base.name
+            kernel_label = kernel_rel.replace("/", "_")
 
-        print(f"\n{'=' * 70}")
-        print(f"Kernel: {kernel_rel}")
-        print(f"{'=' * 70}")
+            print(f"\n{'=' * 70}")
+            print(f"Kernel: {kernel_rel}")
+            print(f"{'=' * 70}")
 
-        if not source_path.exists():
-            print(f"  ERROR: Missing source file {source_path}")
+            if not source_path.exists():
+                print(f"  ERROR: Missing source file {source_path}")
+                continue
+
+            # 1. Baseline
+            print("  [1/3] Running baseline...")
+            base_results = run_benchmark(
+                kernel_name=f"{kernel_label}_base",
+                file_path=source_path,
+                build_dir=build_dir,
+                dataset_size=dataset_size,
+                nodes=args.nodes,
+                tasks_per_node=args.tasks_per_node,
+                cpus_per_task=args.cpus,
+                runs=args.runs,
+                use_srun=args.use_srun,
+                baseline_output_path=None,
+                kernel_include_dir=source_path.parent,
+            )
+            print(
+                f"        Baseline median: {base_results['median']:.6f}s "
+                f"(mean: {base_results['mean']:.6f}s, stdev: {base_results['stdev']:.6f}s)"
+            )
+
+            # 2. Optimize
+            print("  [2/3] Applying catalog transformations via MoE pipeline...")
+            source_code = source_path.read_text(encoding="utf-8")
+            optimized_code = apply_catalog_transformations(
+                source_code=source_code,
+                kernel_stem=kernel_stem,
+                advisor=advisor,
+                generator=generator,
+            )
+
+            opt_source_path = build_dir / f"{kernel_label}_opt.c"
+            opt_source_path.write_text(optimized_code, encoding="utf-8")
+
+            # 3. Run optimized
+            print("  [3/3] Running optimized...")
+            opt_results = run_benchmark(
+                kernel_name=f"{kernel_label}_opt",
+                file_path=opt_source_path,
+                build_dir=build_dir,
+                dataset_size=dataset_size,
+                nodes=args.nodes,
+                tasks_per_node=args.tasks_per_node,
+                cpus_per_task=args.cpus,
+                runs=args.runs,
+                use_srun=args.use_srun,
+                baseline_output_path=base_results["output_file"],
+                kernel_include_dir=source_path.parent,
+            )
+            print(
+                f"        Optimized median: {opt_results['median']:.6f}s "
+                f"(mean: {opt_results['mean']:.6f}s, stdev: {opt_results['stdev']:.6f}s)"
+            )
+            print(f"        Correctness verified: {opt_results['verified']}")
+
+            if opt_results["verified"]:
+                speedup = base_results["median"] / opt_results["median"]
+                print(f"\n  >>> Speedup: {speedup:.4f}x")
+            else:
+                print("\n  >>> Speedup not reported — output verification FAILED.")
+
+        except Exception as exc:
+            print(f"  ERROR while processing {kernel_rel}: {exc}")
             continue
-
-        # 1. Baseline
-        print("  [1/3] Running baseline...")
-        base_results = run_benchmark(
-            kernel_name=f"{kernel_label}_base",
-            file_path=source_path,
-            build_dir=build_dir,
-            dataset_size=dataset_size,
-            nodes=args.nodes,
-            tasks_per_node=args.tasks_per_node,
-            cpus_per_task=args.cpus,
-            runs=args.runs,
-            use_srun=args.use_srun,
-            baseline_output_path=None,
-            kernel_include_dir=source_path.parent,
-        )
-        print(
-            f"        Baseline median: {base_results['median']:.6f}s "
-            f"(mean: {base_results['mean']:.6f}s, stdev: {base_results['stdev']:.6f}s)"
-        )
-
-        # 2. Optimize
-        print("  [2/3] Applying catalog transformations via MoE pipeline...")
-        source_code = source_path.read_text(encoding="utf-8")
-        optimized_code = apply_catalog_transformations(
-            source_code=source_code,
-            kernel_stem=kernel_stem,
-            advisor=advisor,
-            generator=generator,
-        )
-
-        opt_source_path = build_dir / f"{kernel_label}_opt.c"
-        opt_source_path.write_text(optimized_code, encoding="utf-8")
-
-        # 3. Run optimized
-        print("  [3/3] Running optimized...")
-        opt_results = run_benchmark(
-            kernel_name=f"{kernel_label}_opt",
-            file_path=opt_source_path,
-            build_dir=build_dir,
-            dataset_size=dataset_size,
-            nodes=args.nodes,
-            tasks_per_node=args.tasks_per_node,
-            cpus_per_task=args.cpus,
-            runs=args.runs,
-            use_srun=args.use_srun,
-            baseline_output_path=base_results["output_file"],
-            kernel_include_dir=source_path.parent,
-        )
-        print(
-            f"        Optimized median: {opt_results['median']:.6f}s "
-            f"(mean: {opt_results['mean']:.6f}s, stdev: {opt_results['stdev']:.6f}s)"
-        )
-        print(f"        Correctness verified: {opt_results['verified']}")
-
-        if opt_results["verified"]:
-            speedup = base_results["median"] / opt_results["median"]
-            print(f"\n  >>> Speedup: {speedup:.4f}x")
-        else:
-            print("\n  >>> Speedup not reported — output verification FAILED.")
 
 
 if __name__ == "__main__":

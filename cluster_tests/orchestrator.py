@@ -544,7 +544,7 @@ def main() -> None:
     print(f"Use srun: {args.use_srun}")
 
     # Initialize MoE pipeline once
-    kb = KnowledgeBase.from_csv(REPO_ROOT / "updated_optimization_catalog.csv")
+    kb = KnowledgeBase.from_csv(REPO_ROOT / "updated_optimization_catalog_hpc.csv")
 
     advisor = MoEAdvisor(
         llm=OpenAIExpertLLM(model_name=args.advisor_model),
